@@ -1,2 +1,2 @@
 # chess-rekognition-app
-Frontal Chess Rekognition
+Frontal Chess Rekognition.
