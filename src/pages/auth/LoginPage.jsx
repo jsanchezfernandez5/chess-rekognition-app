@@ -74,7 +74,7 @@ export default function LoginPage() {
         <InputText
           id="username"
           name="username"
-          label="Usuario"
+          label="Usuario *"
           placeholder="chess_test01"
           value={form.username}
           onChange={handleChange}
@@ -85,7 +85,7 @@ export default function LoginPage() {
         <InputPassword
           id="password"
           name="password"
-          label="Contraseña"
+          label="Contraseña *"
           value={form.password}
           onChange={handleChange}
           disabled={loading}
