@@ -28,7 +28,7 @@ El frontend utiliza dependencias modernas para proveer funcionalidad con un impa
 - **[Framer Motion](https://www.framer.com/motion/) (`^12.36.0`):** Biblioteca de animaciones reactivas para transiciones de los diferentes componentes visuales.
 
 ### Motor de Ajedrez Lógico y Visual
-- **[chess.js](https://github.com/jhlywa/chess.js) (`^1.4.0`):** Motor de código abierto que se encarga de validar los movimientos (PGN o FEN) para corroborar la validez de cada jugada.
+- **[chess.js](https://github.com/jhlywa/chess.js) (`^1.4.0`):** Motor de código abierto que se encarga de validar los movimientos (PGN o FEN) para comprobar la validez de cada jugada.
 - **[react-chessboard](https://github.com/react-chessboard/react-chessboard) (`^5.10.0`):** Componente visual interactivo para HTML, que se empareja mediante propiedades al estado de partidas de *chess.js*.
 
 ## Estructura de Directorios Clave
