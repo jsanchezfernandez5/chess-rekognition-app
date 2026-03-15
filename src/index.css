@@ -1,35 +1,51 @@
 @import "tailwindcss";
 
 @theme {
-  --color-cr-bg:        #f3f6fa;
-  --color-cr-surface:   #ffffff;
-  --color-cr-surface2:  #f8fafc;
-  
-  --color-cr-primary:   #204ead;
-  --color-cr-primary-hover: #163675;
-  --color-cr-primary-light: #e6effa;
-  
-  --color-cr-text:      #3a3a3a;
-  --color-cr-muted:     #718096;
-  --color-cr-border:    #e2e8f0;
+    --color-cr-bg: #f3f6fa;
+    --color-cr-surface: #ffffff;
+    --color-cr-surface2: #f8fafc;
 
-  --font-display: Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --color-cr-primary: #204ead;
+    --color-cr-primary-hover: #163675;
+    --color-cr-primary-light: #e6effa;
 
-  --animate-blink: blink 1.1s step-start infinite;
+    --color-cr-text: #3a3a3a;
+    --color-cr-muted: #718096;
+    --color-cr-border: #e2e8f0;
 
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
-  }
+    --font-display: Georgia, Cambria, "Times New Roman", Times, serif;
+    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+    --animate-blink: blink 1.1s step-start infinite;
+
+    @keyframes blink {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0;
+        }
+    }
 }
 
 @layer base {
-  *, *::before, *::after { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body {
-    background: var(--color-cr-bg);
-    color: var(--color-cr-text);
-    -webkit-font-smoothing: antialiased;
-  }
+
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        background: var(--color-cr-bg);
+        color: var(--color-cr-text);
+        -webkit-font-smoothing: antialiased;
+    }
 }

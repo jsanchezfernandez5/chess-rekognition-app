@@ -10,11 +10,11 @@ import { AuthContext } from '@/context/AuthContext'
  * @throws {Error} Si el hook se usa fuera de un componente envuelto por <AuthProvider>.
  */
 export function useAuth() {
-  const ctx = useContext(AuthContext)
-  
-  if (!ctx) {
-    throw new Error('El hook useAuth debe usarse dentro de un componente Provider (<AuthProvider>)')
-  }
-  
-  return ctx
+    const ctx = useContext(AuthContext)
+
+    if (!ctx) {
+        throw new Error('El hook useAuth debe usarse dentro de un componente Provider (<AuthProvider>)')
+    }
+
+    return ctx
 }
