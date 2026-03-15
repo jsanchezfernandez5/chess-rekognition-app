@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useState, useEffect, useCallback, useRef } from 'react'
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext(null)
@@ -19,11 +19,37 @@ export function AuthProvider({ children }) {
     // Estado para almacenar la información del usuario autenticado
     const [user, setUser] = useState(null)
 
-    // Estado para el JWT token, inicializado desde el localStorage
+    // Estados para los tokens (acceso y refresco), inicializados desde localStorage
     const [token, setToken] = useState(() => localStorage.getItem('cr_token'))
+    const [refreshToken, setRefreshToken] = useState(() => localStorage.getItem('cr_refresh_token'))
+
+    // Refs para evitar cierres léxicos obsoletos en authFetch y permitir que sea estable
+    const tokenRef = useRef(token)
+    const refreshTokenRef = useRef(refreshToken)
+
+    // Sincronización de refs con estados
+    useEffect(() => {
+        tokenRef.current = token
+    }, [token])
+
+    useEffect(() => {
+        refreshTokenRef.current = refreshToken
+    }, [refreshToken])
 
     // Estado que indica si la validación inicial de sesión está en progreso
     const [loading, setLoading] = useState(true)
+
+    /**
+     * Método para cerrar sesión de manera definitiva, borrando todos los 
+     * datos del cliente local.
+     */
+    const logout = useCallback(() => {
+        localStorage.removeItem('cr_token')
+        localStorage.removeItem('cr_refresh_token')
+        setToken(null)
+        setRefreshToken(null)
+        setUser(null)
+    }, [])
 
     /**
      * Efecto de inicialización:
@@ -44,15 +70,43 @@ export function AuthProvider({ children }) {
                 return r.json()
             })
             .then(data => setUser(data))
-            .catch(() => {
-                // Si el token expira o es inválido, limpiamos la sesión local
-                localStorage.removeItem('cr_token')
-                setToken(null)
+            .catch(async () => {
+                try {
+                    // Intentamos renovar la sesión si el access_token ha expirado
+                    const refreshRes = await fetch(`${API}/auth/refresh`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ refresh_token: refreshToken }),
+                    })
+
+                    if (refreshRes.ok) {
+                        const { access_token, refresh_token } = await refreshRes.json()
+
+                        // Sincronizamos almacenamiento, estados y refs con los nuevos tokens
+                        localStorage.setItem('cr_token', access_token)
+                        localStorage.setItem('cr_refresh_token', refresh_token)
+                        setToken(access_token)
+                        setRefreshToken(refresh_token)
+                        tokenRef.current = access_token
+                        refreshTokenRef.current = refresh_token
+
+                        // Reintentamos hidratar el usuario con el nuevo token
+                        const me = await fetch(`${API}/auth/whoami`, {
+                            headers: { Authorization: `Bearer ${access_token}` },
+                        }).then(r => r.json())
+                        
+                        setUser(me)
+                    } else {
+                        logout()
+                    }
+                } catch (err) {
+                    logout()
+                }
             })
             .finally(() => setLoading(false))
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []) // Se ejecuta únicamente al montar la aplicación
+    }, [logout]) // Se ejecuta únicamente al montar la aplicación
 
     /**
      * Método para iniciar sesión en el sistema.
@@ -87,10 +141,12 @@ export function AuthProvider({ children }) {
                 throw new Error(message)
             }
 
-            // Si el acceso fue exitoso, extraemos y guardamos el token
-            const { access_token } = await res.json()
+            // Si el acceso fue exitoso, extraemos y guardamos los tokens
+            const { access_token, refresh_token } = await res.json()
             localStorage.setItem('cr_token', access_token)
+            localStorage.setItem('cr_refresh_token', refresh_token)
             setToken(access_token)
+            setRefreshToken(refresh_token)
 
             // Obtenemos inmediatamente el perfil del usuario para actualizar la interfaz
             const me = await fetch(`${API}/auth/whoami`, {
@@ -155,11 +211,7 @@ export function AuthProvider({ children }) {
      * Método para cerrar sesión de manera definitiva, borrando todos los 
      * datos del cliente local.
      */
-    const logout = useCallback(() => {
-        localStorage.removeItem('cr_token')
-        setToken(null)
-        setUser(null)
-    }, [])
+
 
     /**
      * Envoltorio (Wrapper) universal de Fetch preparado para enviar
@@ -172,23 +224,59 @@ export function AuthProvider({ children }) {
      * @throws {Error} Si el backend responde con un Unauthorized (401).
      */
     const authFetch = useCallback(async (path, opts = {}) => {
-        const res = await fetch(`${API}${path}`, {
+        const commonHeaders = {
+            'Content-Type': 'application/json',
+            ...opts.headers,
+        }
+
+        let res = await fetch(`${API}${path}`, {
             ...opts,
             headers: {
-                'Content-Type': 'application/json',
-                ...opts.headers,
-                Authorization: `Bearer ${token}`,
+                ...commonHeaders,
+                Authorization: `Bearer ${tokenRef.current}`,
             },
         })
 
-        // Si la API contesta que no estamos autorizados, cerramos la sesión forzosamente
+        // Si la API contesta 401, intentamos reintento automático con el refresh token
         if (res.status === 401) {
-            logout()
-            throw new Error('Sesión expirada')
+            try {
+                // Intentamos renovar el access_token llamando al endpoint de refresh
+                const refreshRes = await fetch(`${API}/auth/refresh`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refresh_token: refreshTokenRef.current }),
+                })
+
+                if (refreshRes.ok) {
+                    const { access_token } = await refreshRes.json()
+
+                    // Actualizamos localStorage, estado y el ref para el reintento inmediato
+                    localStorage.setItem('cr_token', access_token)
+                    setToken(access_token)
+                    tokenRef.current = access_token
+
+                    // Reintentamos la petición original una sola vez con el nuevo token
+                    res = await fetch(`${API}${path}`, {
+                        ...opts,
+                        headers: {
+                            ...commonHeaders,
+                            Authorization: `Bearer ${access_token}`,
+                        },
+                    })
+                }
+            } catch (err) {
+                // Errores de red durante el refresh se tratan como sesión expirada
+            }
+
+            // Si la renovación falló o el reintento también devolvió 401
+            if (res.status === 401) {
+                logout()
+                throw new Error('Sesión expirada')
+            }
         }
 
         return res
-    }, [token, logout])
+    }, [logout])
 
     // Retornamos el contexto proporcionando todos los estados y métodos envueltos
     return (
