@@ -28,7 +28,7 @@ export default function AuthLayout({ children }) {
                 />
 
                 {/* Gradiente sutil para integrar */}
-                <div className="absolute inset-0 bg-gradient-to-t from-cr-primary/80 via-cr-primary/20 to-transparent mix-blend-multiply"></div>
+                <div className="absolute inset-0 bg-linear-to-t from-cr-primary/80 via-cr-primary/20 to-transparent mix-blend-multiply"></div>
                 <div className="absolute inset-0 bg-white/10 backdrop-blur-[2px]"></div>
 
                 {/* Texto y Typewriter Centrado Directamente en el overlay */}
@@ -36,7 +36,7 @@ export default function AuthLayout({ children }) {
                     <h2 className="font-display text-4xl md:text-5xl font-black text-white mb-5 drop-shadow-md">
                         Chess Rekognition
                     </h2>
-                    <div className="text-white/90 text-lg md:text-xl font-medium tracking-wide drop-shadow text-center min-h-[2rem]">
+                    <div className="text-white/90 text-lg md:text-xl font-medium tracking-wide drop-shadow text-center min-h-8">
                         <TypewriterText />
                     </div>
                 </div>
