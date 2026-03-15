@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
-import LoginPage     from '@/pages/auth/LoginPage'
-import RegisterPage  from '@/pages/auth/RegisterPage'
-import DashboardPage from '@/pages/dashboard/DashboardPage'
+import LoginPage      from '@/pages/auth/LoginPage'
+import RegisterPage   from '@/pages/auth/RegisterPage'
+import DashboardPage  from '@/pages/dashboard/DashboardPage'
+import NotFoundPage   from '@/pages/NotFoundPage'
 
 function Loader() {
   return (
@@ -40,7 +41,8 @@ export default function AppRouter() {
           {/* Próximas rutas aquí */}
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Ruta para manejar el error 404 */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   )
