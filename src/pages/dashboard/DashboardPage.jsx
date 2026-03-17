@@ -1,74 +1,140 @@
-import { Link } from 'react-router-dom'
-import AppLayout from '@/components/layout/AppLayout'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
-import { Edit3, Bot, Video, VideoOff, ClipboardList } from 'lucide-react'
-
-/**
- * Lista estática con las acciones rápidas del dashboard.
- * Contiene la información necesaria para renderizar cada tarjeta:
- * ruta destino, icono decorativo, título de la acción y una breve descripción.
- * @type {Array<{path: string, icon: JSX.Element, label: string, desc: string}>}
- */
-const ACCIONES = [
-    { path: '/games/input', icon: <Edit3 size={24} className="text-indigo-500" />, label: 'Introducir partida', desc: 'Añade una partida manualmente' },
-    { path: '/stockfish', icon: <Bot size={24} className="text-rose-500" />, label: 'Jugar vs Stockfish', desc: 'Reta al motor de ajedrez' },
-    { path: '/games/live', icon: <Video size={24} className="text-sky-500" />, label: 'Con retransmisión', desc: 'Partida en directo con cámara' },
-    { path: '/games/offline', icon: <VideoOff size={24} className="text-slate-500" />, label: 'Sin retransmisión', desc: 'Partida sin cámara' },
-    { path: '/games', icon: <ClipboardList size={24} className="text-emerald-500" />, label: 'Ver partidas', desc: 'Historial completo' },
-]
+import Button from '@/components/ui/Button'
+import TypewriterText from '@/components/ui/TypewriterText'
+import { 
+    LogOut, 
+    PlusCircle, 
+    Swords, 
+    Radio, 
+    LayoutList 
+} from 'lucide-react'
 
 /**
  * Página principal del panel de control (Dashboard).
- * Muestra un mensaje de bienvenida personalizado y una cuadrícula
- * con enlaces rápidos a las principales funciones de la aplicación.
- * 
- * @returns {JSX.Element} Vista principal del dashboard.
+ * Rediseñada para coincidir exactamente con la estética de las pantallas de acceso (Login/Registro).
+ * Utiliza un diseño de panel dividido con elementos de marca consistentes.
  */
 export default function DashboardPage() {
-    // Obtenemos el usuario autenticado desde el contexto global
-    const { user } = useAuth()
+    const { user, logout } = useAuth()
+    const navigate = useNavigate()
 
-    // Construimos el nombre para mostrar.
-    // Intentamos obtener el nombre completo, en su defecto mostramos 'jugador'.
-    const nombre = `${user?.nombre} ${user?.apellidos}`.trim() || 'jugador'
+    // Nombre a mostrar (prioriza nombre real sobre username)
+    const nombre = user?.nombre || user?.username || 'jugador'
+
+    /**
+     * Cierra la sesión y redirige al inicio.
+     */
+    const handleLogout = () => {
+        logout()
+        navigate('/login')
+    }
+
+    // Definición de acciones según el sketch, con los nombres solicitados
+    const ACCIONES = [
+        { 
+            label: 'Introducir partidas', 
+            path: '/games/input', 
+            icon: <PlusCircle size={20} /> 
+        },
+        { 
+            label: 'Juega vs StockFish', 
+            path: '/stockfish', 
+            icon: <Swords size={20} /> 
+        },
+        { 
+            label: 'Partida retransmitida', 
+            path: '/games/live', 
+            icon: <Radio size={20} /> 
+        },
+        { 
+            label: 'Listado de partidas', 
+            path: '/games', 
+            icon: <LayoutList size={20} /> 
+        },
+    ]
 
     return (
-        <AppLayout>
-            <div className="px-6 py-8 md:px-10 max-w-4xl mx-auto">
-
-                {/* --- Sección de Saludo --- */}
-                <div className="mb-8">
-                    <h1 className="font-display text-2xl md:text-3xl font-black text-cr-text">
-                        Hola, <span className="text-cr-primary capitalize">{nombre}</span>
-                    </h1>
-                    <p className="text-cr-muted text-sm mt-1">¿Qué quieres hacer hoy?</p>
-                </div>
-
-                {/* --- Sección de Acciones Rápidas --- */}
-                <h2 className="text-[11px] font-semibold uppercase tracking-widest text-cr-muted mb-3">
-                    Acciones rápidas
-                </h2>
-
-                {/* Usamos grid para que la cuadrícula se adapte a diferentes tamaños de pantalla */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {ACCIONES.map(accion => (
-                        <Link
-                            key={accion.path}
-                            to={accion.path}
-                            className="flex items-start gap-4 p-4 bg-cr-surface border border-cr-border rounded-xl hover:border-cr-primary/40 hover:bg-cr-surface2 transition-all duration-150 group"
-                        >
-                            <div className="shrink-0 mt-0.5">{accion.icon}</div>
-                            <div>
-                                <p className="text-sm font-semibold text-cr-text group-hover:text-cr-primary transition-colors">
-                                    {accion.label}
-                                </p>
-                                <p className="text-[11px] text-cr-muted mt-0.5">{accion.desc}</p>
-                            </div>
+        <div className="min-h-screen flex items-stretch bg-white">
+            
+            {/* ── PANEL IZQUIERDO (FORMULARIO / ACCIONES) ── */}
+            <div className="flex-1 flex flex-col justify-center items-center px-6 py-12 md:px-16 lg:px-24 bg-white relative z-10 shadow-[20px_0_40px_-20px_rgba(0,0,0,0.05)]">
+                
+                <div className="w-full max-w-[360px]">
+                    
+                    {/* Header: Logo y Salir */}
+                    <div className="flex items-center justify-between mb-8 px-2">
+                        <Link to="/dashboard" title="Ir al Dashboard" className="shrink-0 transition-opacity hover:opacity-80">
+                            <img src="/logo.svg" alt="Chess Rekognition" className="w-[260px] h-auto" />
                         </Link>
-                    ))}
+                        
+                        <button 
+                            onClick={handleLogout}
+                            className="flex flex-col items-center gap-1 group text-cr-muted hover:text-rose-500 transition-colors cursor-pointer shrink-0"
+                            title="Cerrar sesión"
+                        >
+                            <div className="p-3 rounded-2xl bg-cr-bg group-hover:bg-rose-50 transition-colors shadow-sm">
+                                <LogOut size={24} />
+                            </div>
+                            <span className="text-[10px] uppercase font-black tracking-widest mt-1">Salir</span>
+                        </button>
+                    </div>
+
+                    {/* Saludo */}
+                    <div className="text-center mb-12">
+                        <h1 className="font-display text-2xl md:text-2xl font-black text-cr-text whitespace-nowrap overflow-hidden text-ellipsis">
+                            Hola, <span className="text-cr-primary capitalize">{nombre}</span>
+                        </h1>
+                    </div>
+
+                    {/* Lista de Botones (Acciones) — Estilo Login/Registro */}
+                    <div className="flex flex-col gap-4">
+                        {ACCIONES.map((accion, i) => (
+                            <Button
+                                key={i}
+                                onClick={() => navigate(accion.path)}
+                                variant="primary"
+                                size="lg"
+                                className="justify-start px-8 h-[64px] text-base group shadow-lg hover:shadow-cr-primary/30"
+                                title={accion.label}
+                            >
+                                <span className="shrink-0 mr-5 text-white/90 group-hover:text-white transition-colors">
+                                    {accion.icon}
+                                </span>
+                                {accion.label}
+                            </Button>
+                        ))}
+                    </div>
+
+                </div>
+            </div>
+
+            {/* ── PANEL DERECHO (IMAGEN / TYPEWRITER — IDÉNTICO A LOGIN) ── */}
+            <div className="hidden md:flex relative w-1/2 flex-col justify-center items-center bg-cr-bg overflow-hidden border-l border-cr-border/60">
+                
+                {/* Imagen de fondo (Misma que en AuthLayout) */}
+                <img
+                    src="https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&q=80&w=1200"
+                    alt="Chess match"
+                    className="absolute inset-0 object-cover w-full h-full opacity-90 mix-blend-multiply"
+                />
+
+                {/* Gradiente sutil para integrar */}
+                <div className="absolute inset-0 bg-linear-to-t from-cr-primary/80 via-cr-primary/20 to-transparent mix-blend-multiply"></div>
+                <div className="absolute inset-0 bg-white/10 backdrop-blur-[2px]"></div>
+
+                {/* Texto y Typewriter Centrado Directamente en el overlay */}
+                <div className="relative z-10 flex flex-col items-center justify-center text-center px-8">
+                    <h2 className="font-display text-4xl md:text-5xl font-black text-white mb-5 drop-shadow-md">
+                        Chess Rekognition
+                    </h2>
+                    <div className="text-white/90 text-lg md:text-xl font-medium tracking-wide drop-shadow text-center min-h-8">
+                        <TypewriterText />
+                    </div>
                 </div>
 
             </div>
-        </AppLayout>
+
+        </div>
     )
 }

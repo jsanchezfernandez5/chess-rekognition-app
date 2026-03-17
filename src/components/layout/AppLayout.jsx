@@ -9,11 +9,10 @@ import { LayoutDashboard, Edit3, Bot, Video, VideoOff, ClipboardList, LogOut, Me
  */
 const NAV = [
     { path: '/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
-    { path: '/games/input', icon: <Edit3 size={20} />, label: 'Introducir partida' },
-    { path: '/stockfish', icon: <Bot size={20} />, label: 'vs Stockfish' },
-    { path: '/games/live', icon: <Video size={20} />, label: 'Con retransmisión' },
-    { path: '/games/offline', icon: <VideoOff size={20} />, label: 'Sin retransmisión' },
-    { path: '/games', icon: <ClipboardList size={20} />, label: 'Partidas' },
+    { path: '/games/input', icon: <Edit3 size={20} />, label: 'Introducir partidas' },
+    { path: '/stockfish', icon: <Bot size={20} />, label: 'Juega vs StockFish' },
+    { path: '/games/live', icon: <Video size={20} />, label: 'Partida retransmitida' },
+    { path: '/games', icon: <ClipboardList size={20} />, label: 'Listado de partidas' },
 ]
 
 /**
