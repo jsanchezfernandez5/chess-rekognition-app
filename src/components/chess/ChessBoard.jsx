@@ -9,19 +9,26 @@ export default function ChessBoard({
     onChange,
     actionRef
 }) {
+    // Referencia al motor de juego (chess.js) para que no se pierda entre renders
     const game = useRef(new Chess(initialFen === 'start' ? undefined : initialFen))
+    
+    // El FEN es lo que hace que el tablero visual se actualice
     const [fen, setFen] = useState(game.current.fen())
+    
+    // Control del modal para cuando un peón llega al final
     const [showPromotionModal, setShowPromotionModal] = useState(false)
     const [movePendingPromotion, setMovePendingPromotion] = useState(null)
 
+    // Guardamos el callback de cambio en una ref para evitar re-renders innecesarios
     const onChangeRef = useRef(onChange)
     useEffect(() => { onChangeRef.current = onChange }, [onChange])
 
+    // Función para avisar al componente padre que algo ha cambiado en la partida
     const notifyChange = useCallback(() => {
-        // Deferimos la notificación al padre para no interrumpir el ciclo de eventos
+        // Usamos un pequeño delay para que React no se queje de cambios de estado durante el render
         setTimeout(() => {
             if (onChangeRef.current) {
-                // Limpiamos los tags de PGN [Event "..."] etc. para dejar solo la notación
+                // Sacamos el PGN "limpio", quitando las etiquetas de evento/fecha que mete chess.js
                 const rawPgn = game.current.pgn()
                 const cleanPgn = rawPgn.replace(/\[.*?\]\s*/g, '').trim()
 
@@ -35,30 +42,32 @@ export default function ChessBoard({
         }, 0)
     }, [])
 
-    // En react-chessboard v5, onPieceDrop recibe UN OBJETO:
-    // { piece: string/object, sourceSquare: string, targetSquare: string }
+    // Esta función se dispara cuando soltamos una pieza en una casilla
     function onDrop({ piece, sourceSquare, targetSquare }) {
-        // En algunas subversiones de v5, piece es un objeto con pieceType
+        // Normalizamos el tipo de pieza (react-chessboard a veces manda un objeto)
         const pieceType = typeof piece === 'string' ? piece : piece?.pieceType ?? ''
 
         if (!sourceSquare || !targetSquare) return false
 
         try {
-            // Detectar coronación: pieceType es "wP" o "bP"
-            if (pieceType && pieceType[1] === 'P' && (targetSquare[1] === '8' || targetSquare[1] === '1')) {
+            // ¿Es un peón intentando coronar?
+            const isPawn = pieceType && pieceType[1] === 'P'
+            const isLastRank = targetSquare[1] === '8' || targetSquare[1] === '1'
+
+            if (isPawn && isLastRank) {
+                // Verificamos si el movimiento es legal antes de abrir el modal
                 const moves = game.current.moves({ square: sourceSquare, verbose: true })
                 if (moves.some(m => m.to === targetSquare)) {
                     setMovePendingPromotion({ from: sourceSquare, to: targetSquare })
                     setShowPromotionModal(true)
-                    return false
+                    return false // Bloqueamos el movimiento visual hasta que elija pieza
                 }
             }
 
+            // Movimiento normal de toda la vida
             const move = game.current.move({ from: sourceSquare, to: targetSquare })
 
-            if (move === null) {
-                return false
-            }
+            if (move === null) return false // Movimiento ilegal
 
             setFen(game.current.fen())
             notifyChange()
@@ -68,29 +77,42 @@ export default function ChessBoard({
         }
     }
 
+    // Se ejecuta cuando el usuario elige la pieza (Dama, Torre...) en el modal
     function handlePromotion(pieceType) {
         if (!movePendingPromotion) return
+        
         game.current.move({
             from: movePendingPromotion.from,
             to: movePendingPromotion.to,
             promotion: pieceType
         })
+        
         setFen(game.current.fen())
         notifyChange()
         setMovePendingPromotion(null)
         setShowPromotionModal(false)
     }
 
+    // Exponemos funciones de control (deshacer, reset) al exterior
     useEffect(() => {
         if (!actionRef) return
         actionRef.current = {
-            undo: () => { game.current.undo(); setFen(game.current.fen()); notifyChange() },
-            reset: () => { game.current.reset(); setFen(game.current.fen()); notifyChange() }
+            undo: () => { 
+                game.current.undo() 
+                setFen(game.current.fen()) 
+                notifyChange() 
+            },
+            reset: () => { 
+                game.current.reset() 
+                setFen(game.current.fen()) 
+                notifyChange() 
+            }
         }
     }, [actionRef, notifyChange])
 
     return (
         <div className="w-full flex justify-center items-center">
+            {/* Contenedor del tablero con sombra y bordes redondeados */}
             <div className="w-full aspect-square max-w-[500px] shadow-2xl rounded-2xl bg-white p-4">
                 <Chessboard
                     options={{
@@ -103,10 +125,11 @@ export default function ChessBoard({
                 />
             </div>
 
+            {/* Modal de selección de pieza al coronar */}
             <Modal
                 isOpen={showPromotionModal}
                 onClose={() => { setShowPromotionModal(false); setMovePendingPromotion(null) }}
-                title="Elige pieza para coronar"
+                title="¿Qué pieza prefieres?"
                 maxWidth="max-w-xs"
             >
                 <div className="grid grid-cols-2 gap-3 p-2">

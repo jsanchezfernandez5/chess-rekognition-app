@@ -3,7 +3,6 @@ import {
     RotateCcw,
     Undo2,
     Save,
-    Eraser,
     LogOut,
     Loader2
 } from 'lucide-react'
@@ -17,22 +16,23 @@ import InputSelect from '@/components/ui/InputSelect'
 import Textarea from '@/components/ui/Textarea'
 
 /**
- * Página para la introducción manual de partidas de ajedrez.
- * Permite reproducir una partida en un tablero interactivo, capturar el PGN 
- * y completar los metadatos necesarios (Evento, Jugadores, etc.) para guardarla.
+ * Vista para introducir partidas manualmente.
+ * Aquí podemos 'jugar' la partida en el tablero y rellenar los datos del torneo.
  */
 export default function IntroducirPartidaPage() {
     const { logout, authFetch } = useAuth()
     const navigate = useNavigate()
     const boardRef = useRef(null)
-    const [activeTab, setActiveTab] = useState('board') // 'board' o 'form'
+    
+    // Control de pestañas para la versión móvil (Tablero / Formulario)
+    const [activeTab, setActiveTab] = useState('board')
 
-    // ── ESTADO DEL JUEGO ──
+    // --- ESTADO DE LA PARTIDA ---
     const [pgn, setPgn] = useState('')
     const [moveHistory, setMoveHistory] = useState([])
     const [boardOrientation, setBoardOrientation] = useState('white')
 
-    // ── ESTADO DEL FORMULARIO ──
+    // --- DATOS DEL FORMULARIO ---
     const [formData, setFormData] = useState({
         evento: '',
         blancas: '',
@@ -45,79 +45,65 @@ export default function IntroducirPartidaPage() {
         observaciones: ''
     })
 
-    // Errores de validación
+    // Gestión de errores y estados de carga
     const [errors, setErrors] = useState({})
     const [isSaving, setIsSaving] = useState(false)
 
-    /**
-     * Captura los cambios del tablero y actualiza el PGN y el historial locales.
-     */
+    // Escuchamos los cambios que vienen del componente ChessBoard
     const handleBoardChange = useCallback((status) => {
-        console.log('[PAGE] Recibido cambio de tablero:', status.pgn)
         setPgn(status.pgn)
         setMoveHistory(status.history)
     }, [])
 
-    /**
-     * Deshace la última jugada realizada.
-     */
+    // Función para dar marcha atrás a la última jugada
     function undoMove() {
         boardRef.current?.undo()
     }
 
-    /**
-     * Cambia la orientación del tablero (Girar).
-     */
+    // Girar el tablero (útil si juegas con negras)
     function toggleOrientation() {
         setBoardOrientation(prev => prev === 'white' ? 'black' : 'white')
     }
 
-    /**
-     * Limpia todo el tablero y el formulario.
-     */
-    function resetBoard() {
-        if (window.confirm('¿Estás seguro de que quieres borrar la partida actual?')) {
-            boardRef.current?.reset()
-        }
-    }
-
-    /**
-     * Maneja los cambios en los inputs del formulario.
-     */
+    // Actualizamos los campos del formulario de forma dinámica
     const handleInputChange = (e) => {
         const { name, value } = e.target
         setFormData(prev => ({ ...prev, [name]: value }))
-        // Limpiar error al escribir
+        
+        // Si había un error en este campo, lo quitamos al empezar a escribir
         if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: null }))
         }
     }
 
-    /**
-     * Valida y guarda la partida en la base de datos.
-     */
+    // El corazón de la página: guardar la partida en nuestra API
     const handleSave = async (e) => {
         e.preventDefault()
 
-        // 1. Validación de campos obligatorios
+        // Validaciones básicas antes de intentar enviar nada
         const newErrors = {}
-        if (!formData.evento) newErrors.evento = 'El evento es obligatorio'
-        if (!formData.blancas) newErrors.blancas = 'El jugador de blancas es obligatorio'
-        if (!formData.negras) newErrors.negras = 'El jugador de negras es obligatorio'
-        if (!formData.fecha) newErrors.fecha = 'La fecha es obligatoria'
-        if (!formData.resultado || formData.resultado === '*') newErrors.resultado = 'Debes seleccionar un resultado válido'
-        if (!pgn || pgn.trim() === '' || pgn.trim() === '*') newErrors.pgn = 'Debes introducir al menos una jugada'
+        if (!formData.evento) newErrors.evento = 'El nombre del evento es necesario'
+        if (!formData.blancas) newErrors.blancas = 'Falta el nombre del jugador de blancas'
+        if (!formData.negras) newErrors.negras = 'Falta el nombre del jugador de negras'
+        if (!formData.fecha) newErrors.fecha = 'La fecha no puede estar vacía'
+        if (!formData.resultado || formData.resultado === '*') {
+            newErrors.resultado = 'Por favor, selecciona el resultado de la partida'
+        }
+        if (!pgn || pgn.trim() === '' || pgn.trim() === '*') {
+            newErrors.pgn = '¡No has hecho ninguna jugada todavía!'
+        }
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors)
-            setActiveTab('form') // Aseguramos que el usuario vea los errores
+            // Si hay errores y estamos en móvil, le llevamos a la pestaña del formulario para que los vea
+            setActiveTab('form')
             return
         }
 
         setIsSaving(true)
 
         try {
-            // 2. Preparar el payload según PartidaCreate (schemas/partidas.py)
+            // Preparamos el objeto tal cual lo espera el backend (FastAPI)
             const payload = {
                 evento: formData.evento,
                 blancas: formData.blancas,
@@ -125,14 +111,14 @@ export default function IntroducirPartidaPage() {
                 fecha: formData.fecha,
                 resultado: formData.resultado,
                 pgn: pgn,
-                tipo_partida: 'PI', // Partida Introducida
+                tipo_partida: 'PI', // 'PI' significa Partida Introducida (manual)
                 ronda: formData.ronda ? parseInt(formData.ronda) : null,
                 tablero: formData.tablero ? parseInt(formData.tablero) : null,
                 lugar: formData.lugar || null,
                 observaciones: formData.observaciones || null
             }
 
-            // 3. Llamada al servicio API (usamos '/' al final para evitar redirects de CORS)
+            // Llamada autenticada a nuestro servicio de partidas
             const res = await authFetch('/partidas/', {
                 method: 'POST',
                 body: JSON.stringify(payload)
@@ -140,16 +126,15 @@ export default function IntroducirPartidaPage() {
 
             if (!res.ok) {
                 const errorData = await res.json()
-                throw new Error(errorData.detail || 'Error al guardar la partida')
+                throw new Error(errorData.detail || 'Algo ha fallado al intentar guardar')
             }
 
-            // 4. Éxito
-            alert('Partida guardada correctamente')
+            alert('¡Partida guardada con éxito!')
             navigate('/dashboard')
 
         } catch (error) {
-            console.error('Error saving game:', error)
-            alert(error.message || 'Error al conectar con el servidor')
+            console.error('Error al guardar:', error)
+            alert(error.message || 'Error de conexión con el servidor')
         } finally {
             setIsSaving(false)
         }
@@ -163,8 +148,8 @@ export default function IntroducirPartidaPage() {
     return (
         <div className="min-h-screen flex flex-col bg-white">
 
-            {/* ── HEADER SUPERIOR (LOGOTIPO Y SALIR) ── */}
-            <header className="w-full h-32 px-8 md:px-16 flex items-center justify-between bg-white z-10 transition-all">
+            {/* Cabecera con logo y botón de cerrar sesión */}
+            <header className="w-full h-32 px-8 md:px-16 flex items-center justify-between bg-white z-10">
                 <div className="pt-6 pl-4">
                     <Link to="/dashboard" className="transition-opacity hover:opacity-80">
                         <img src="/logo.svg" alt="Chess Rekognition" className="w-[260px] h-auto" />
@@ -174,9 +159,9 @@ export default function IntroducirPartidaPage() {
                 <button
                     onClick={handleLogout}
                     className="flex flex-col items-center gap-1 group text-cr-muted hover:text-rose-500 transition-colors cursor-pointer shrink-0 mt-6"
-                    title="Cerrar sesión"
+                    title="Salir de la aplicación"
                 >
-                    <div className="p-3 rounded-2xl bg-cr-bg group-hover:bg-rose-50 transition-colors shadow-sm">
+                    <div className="p-3 rounded-2xl bg-cr-bg group-hover:bg-rose-50 shadow-sm transition-colors">
                         <LogOut size={24} />
                     </div>
                     <span className="text-[10px] uppercase font-black tracking-widest mt-1">Salir</span>
@@ -185,7 +170,7 @@ export default function IntroducirPartidaPage() {
 
             <div className="flex-1 flex flex-col md:flex-row relative mt-8">
 
-                {/* ── PANEL IZQUIERDO: TABLERO Y PGN ── */}
+                {/* Zona del tablero y visor de jugadas */}
                 <div className={`w-full md:w-1/2 flex flex-col p-6 md:p-10 lg:p-12 border-r border-cr-border/40 ${activeTab !== 'board' ? 'hidden md:flex' : 'flex'}`}>
 
                     <div className="mb-10 text-center">
@@ -201,7 +186,7 @@ export default function IntroducirPartidaPage() {
                             boardOrientation={boardOrientation}
                         />
 
-                        {/* Controles del Tablero */}
+                        {/* Botones de acción rápida sobre el tablero */}
                         <div className="grid grid-cols-2 gap-4 w-full mt-6">
                             <Button
                                 variant="primary"
@@ -222,10 +207,10 @@ export default function IntroducirPartidaPage() {
                             </Button>
                         </div>
 
-                        {/* Visor PGN (Textarea) */}
+                        {/* Visor de la notación en formato FIGURINE */}
                         <div className="w-full mt-10 mb-16 md:mb-0">
                             <label className="block text-[11px] uppercase font-black text-cr-muted mb-2 tracking-widest pl-1">
-                                Notación PGN
+                                Notación de la partida
                             </label>
                             <div className="relative group">
                                 <textarea
@@ -244,7 +229,7 @@ export default function IntroducirPartidaPage() {
                     </div>
                 </div>
 
-                {/* ── PANEL DERECHO: FORMULARIO DE DATOS ── */}
+                {/* Formulario con los detalles técnicos del evento/partida */}
                 <div className={`w-full md:w-1/2 flex flex-col bg-white p-6 md:p-10 lg:p-12 overflow-y-auto ${activeTab !== 'form' ? 'hidden md:flex' : 'flex'}`}>
                     <div className="max-w-[500px] mx-auto w-full mb-20 md:mb-0">
 
@@ -259,7 +244,7 @@ export default function IntroducirPartidaPage() {
                             <InputText
                                 id="evento"
                                 name="evento"
-                                label="Evento *"
+                                label="Nombre del Evento *"
                                 placeholder="Ej: Torneo de Primavera 2026"
                                 value={formData.evento}
                                 onChange={handleInputChange}
@@ -271,8 +256,8 @@ export default function IntroducirPartidaPage() {
                             <InputText
                                 id="blancas"
                                 name="blancas"
-                                label="Blancas *"
-                                placeholder="Nombre jugador"
+                                label="Jugador Blancas *"
+                                placeholder="Nombre completo"
                                 value={formData.blancas}
                                 onChange={handleInputChange}
                                 error={errors.blancas}
@@ -282,8 +267,8 @@ export default function IntroducirPartidaPage() {
                             <InputText
                                 id="negras"
                                 name="negras"
-                                label="Negras *"
-                                placeholder="Nombre jugador"
+                                label="Jugador Negras *"
+                                placeholder="Nombre completo"
                                 value={formData.negras}
                                 onChange={handleInputChange}
                                 error={errors.negras}
@@ -309,9 +294,9 @@ export default function IntroducirPartidaPage() {
                                 error={errors.resultado}
                                 disabled={isSaving}
                                 options={[
-                                    { value: '*', label: 'Introduce resultado (*)' },
-                                    { value: '1-0', label: '1-0 (Ganan blancas)' },
-                                    { value: '0-1', label: '0-1 (Ganan negras)' },
+                                    { value: '*', label: 'Selecciona resultado...' },
+                                    { value: '1-0', label: '1-0 (Blancas)' },
+                                    { value: '0-1', label: '0-1 (Negras)' },
                                     { value: '1/2-1/2', label: '1/2-1/2 (Tablas)' }
                                 ]}
                             />
@@ -319,7 +304,7 @@ export default function IntroducirPartidaPage() {
                             <InputText
                                 id="ronda"
                                 name="ronda"
-                                label="Ronda"
+                                label="Nº Ronda"
                                 placeholder="Ej: 3"
                                 value={formData.ronda}
                                 onChange={handleInputChange}
@@ -329,7 +314,7 @@ export default function IntroducirPartidaPage() {
                             <InputText
                                 id="tablero"
                                 name="tablero"
-                                label="Tablero"
+                                label="Nº Tablero"
                                 placeholder="Ej: 15"
                                 value={formData.tablero}
                                 onChange={handleInputChange}
@@ -339,7 +324,7 @@ export default function IntroducirPartidaPage() {
                             <InputText
                                 id="lugar"
                                 name="lugar"
-                                label="Lugar"
+                                label="Localidad / Club"
                                 placeholder="Ciudad, Club..."
                                 value={formData.lugar}
                                 onChange={handleInputChange}
@@ -350,15 +335,15 @@ export default function IntroducirPartidaPage() {
                             <Textarea
                                 id="observaciones"
                                 name="observaciones"
-                                label="Observaciones"
-                                placeholder="Notas adicionales..."
+                                label="Observaciones adicionales"
+                                placeholder="Cualquier nota extra sobre la partida..."
                                 value={formData.observaciones}
                                 onChange={handleInputChange}
                                 disabled={isSaving}
                                 className="md:col-span-2"
                             />
 
-                            {/* Botón Guardar */}
+                            {/* Botón final para guardar todo */}
                             <div className="md:col-span-2 pt-4">
                                 <Button
                                     type="submit"
@@ -381,21 +366,21 @@ export default function IntroducirPartidaPage() {
                 </div>
             </div>
 
-            {/* ── NAVEGACIÓN TABS (SÓLO MÓVIL) ── */}
+            {/* Menú inferior para móviles: alterna entre el tablero y el formulario */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-cr-border flex items-stretch z-50">
                 <button
                     onClick={() => setActiveTab('board')}
                     className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${activeTab === 'board' ? 'text-cr-primary' : 'text-cr-muted'}`}
                 >
                     <div className={`w-8 h-1 rounded-full mb-1 transition-all ${activeTab === 'board' ? 'bg-cr-primary' : 'bg-transparent'}`} />
-                    <span className="text-[10px] uppercase font-black tracking-widest">Visor PGN</span>
+                    <span className="text-[10px] uppercase font-black tracking-widest">Tablero</span>
                 </button>
                 <button
                     onClick={() => setActiveTab('form')}
                     className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${activeTab === 'form' ? 'text-cr-primary' : 'text-cr-muted'}`}
                 >
                     <div className={`w-8 h-1 rounded-full mb-1 transition-all ${activeTab === 'form' ? 'bg-cr-primary' : 'bg-transparent'}`} />
-                    <span className="text-[10px] uppercase font-black tracking-widest">Datos Partida</span>
+                    <span className="text-[10px] uppercase font-black tracking-widest">Datos</span>
                 </button>
             </div>
         </div>
