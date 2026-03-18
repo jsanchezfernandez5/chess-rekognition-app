@@ -132,8 +132,8 @@ export default function IntroducirPartidaPage() {
                 observaciones: formData.observaciones || null
             }
 
-            // 3. Llamada al servicio API
-            const res = await authFetch('/partidas', {
+            // 3. Llamada al servicio API (usamos '/' al final para evitar redirects de CORS)
+            const res = await authFetch('/partidas/', {
                 method: 'POST',
                 body: JSON.stringify(payload)
             })

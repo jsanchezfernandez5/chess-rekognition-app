@@ -54,11 +54,7 @@ export default function ChessBoard({
                 }
             }
 
-            const move = game.current.move({
-                from: sourceSquare,
-                to: targetSquare,
-                promotion: 'q'
-            })
+            const move = game.current.move({ from: sourceSquare, to: targetSquare })
 
             if (move === null) {
                 return false
