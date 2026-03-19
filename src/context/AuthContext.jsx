@@ -264,7 +264,7 @@ export function AuthProvider({ children }) {
                         },
                     })
                 }
-            } catch (err) {
+            } catch {
                 // Errores de red durante el refresh se tratan como sesión expirada
             }
 

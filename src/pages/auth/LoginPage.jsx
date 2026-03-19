@@ -18,7 +18,7 @@ export default function LoginPage() {
     const navigate = useNavigate()
 
     // Estado que almacena el usuario y contraseña del formulario
-    const [form, setForm] = useState({ username: '', password: '' })
+    const [form, setForm] = useState({ username: 'chess_test01', password: 'chess_test01' })
 
     // Estado para capturar y mostrar mensajes de error
     const [error, setError] = useState('')

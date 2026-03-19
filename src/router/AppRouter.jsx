@@ -4,6 +4,7 @@ import LoginPage from '@/pages/auth/LoginPage'
 import RegisterPage from '@/pages/auth/RegisterPage'
 import DashboardPage from '@/pages/dashboard/DashboardPage'
 import IntroducirPartidaPage from '@/pages/games/IntroducirPartidaPage'
+import ListadoPartidasPage from '@/pages/games/ListadoPartidasPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 
 function Loader() {
@@ -40,7 +41,8 @@ export default function AppRouter() {
                 <Route element={<PrivateRoute />}>
                     <Route path="/dashboard" element={<DashboardPage />} />
                     <Route path="/games/input" element={<IntroducirPartidaPage />} />
-                    {/* Próximas rutas aquí */}
+                    <Route path="/games" element={<ListadoPartidasPage />} />
+
                 </Route>
 
                 {/* Ruta para manejar el error 404 */}
