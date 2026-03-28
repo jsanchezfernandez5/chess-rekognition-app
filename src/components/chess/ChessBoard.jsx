@@ -28,15 +28,20 @@ export default function ChessBoard({
         // Usamos un pequeño delay para que React no se queje de cambios de estado durante el render
         setTimeout(() => {
             if (onChangeRef.current) {
-                // Sacamos el PGN "limpio", quitando las etiquetas de evento/fecha que mete chess.js
+                // Sacamos el PGN "limpio", eliminando TODOS los bloques entre corchetes
                 const rawPgn = game.current.pgn()
-                const cleanPgn = rawPgn.replace(/\[.*?\]\s*/g, '').trim()
+                const cleanPgn = rawPgn.replace(/\[.*?\]/g, '').trim()
 
                 onChangeRef.current({
                     fen: game.current.fen(),
                     pgn: cleanPgn,
                     history: game.current.history({ verbose: true }),
-                    game: game.current
+                    game: game.current,
+                    turn: game.current.turn(),
+                    isGameOver: game.current.isGameOver(),
+                    gameResult: game.current.isGameOver() 
+                        ? (game.current.isDraw() ? '1/2-1/2' : (game.current.turn() === 'w' ? '0-1' : '1-0')) 
+                        : '*'
                 })
             }
         }, 0)
@@ -93,7 +98,7 @@ export default function ChessBoard({
         setShowPromotionModal(false)
     }
 
-    // Exponemos funciones de control (deshacer, reset) al exterior
+    // Exponemos funciones de control (deshacer, reset, mover) al exterior
     useEffect(() => {
         if (!actionRef) return
         actionRef.current = {
@@ -106,6 +111,14 @@ export default function ChessBoard({
                 game.current.reset() 
                 setFen(game.current.fen()) 
                 notifyChange() 
+            },
+            move: (m) => {
+                const res = game.current.move(m)
+                if (res) {
+                    setFen(game.current.fen())
+                    notifyChange()
+                }
+                return res
             }
         }
     }, [actionRef, notifyChange])

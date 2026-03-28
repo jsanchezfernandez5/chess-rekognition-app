@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Chessboard } from 'react-chessboard'
 import { Chess } from 'chess.js'
-import { 
-    ChevronLeft, 
-    ChevronRight, 
-    Play, 
-    Pause, 
+import {
+    ChevronLeft,
+    ChevronRight,
+    Play,
+    Pause,
     Download
 } from 'lucide-react'
 import { downloadPgn } from '@/utils/pgnUtils'
@@ -19,7 +19,7 @@ export default function ChessViewer({ partida }) {
     const [history, setHistory] = useState([])
     const [currentMoveIdx, setCurrentMoveIdx] = useState(-1)
     const [isPlaying, setIsPlaying] = useState(false)
-    
+
     const playInterval = useRef(null)
 
     // Resetear al cambiar la partida
@@ -31,7 +31,7 @@ export default function ChessViewer({ partida }) {
             setIsPlaying(false)
             return
         }
-        
+
         try {
             const game = new Chess()
             const movesOnly = (partida.pgn || '')
@@ -39,7 +39,7 @@ export default function ChessViewer({ partida }) {
                 .replace(/\{.*?\}/g, '')
                 .replace(/\(.*?\)/g, '')
                 .trim()
-            
+
             if (game.loadPgn(movesOnly)) {
                 setHistory(game.history({ verbose: true }))
             } else {
@@ -101,7 +101,7 @@ export default function ChessViewer({ partida }) {
 
     return (
         <div className="w-full flex flex-col items-center">
-            
+
             <div className="w-full aspect-square max-w-[420px] shadow-2xl rounded-[30px] bg-white p-4 mb-8 border border-cr-border/10">
                 <Chessboard
                     options={{
@@ -113,22 +113,22 @@ export default function ChessViewer({ partida }) {
             </div>
 
             <div className="flex items-center gap-12 mb-10">
-                <button 
+                <button
                     onClick={handlePrev}
                     className="p-2 text-cr-text hover:text-cr-primary transition-all disabled:opacity-20 cursor-pointer"
                     disabled={currentMoveIdx === -1}
                 >
                     <ChevronLeft size={48} strokeWidth={2.5} />
                 </button>
-                
-                <button 
+
+                <button
                     onClick={() => setIsPlaying(!isPlaying)}
                     className="flex items-center justify-center text-cr-primary transition-transform hover:scale-110 w-16"
                 >
                     {isPlaying ? <Pause size={56} fill="currentColor" /> : <Play size={56} fill="currentColor" className="ml-1" />}
                 </button>
-                
-                <button 
+
+                <button
                     onClick={handleNext}
                     className="p-2 text-cr-text hover:text-cr-primary transition-all disabled:opacity-20 cursor-pointer"
                     disabled={currentMoveIdx === history.length - 1}
@@ -149,18 +149,18 @@ export default function ChessViewer({ partida }) {
                         <Download size={30} />
                     </button>
                 </div>
-                
+
                 <div className="w-full h-36 p-6 bg-cr-bg rounded-[30px] shadow-inner overflow-y-auto">
                     <div className="flex flex-wrap gap-x-4 gap-y-4" style={{ fontFamily: '"Figurine", serif', fontSize: '1.4rem' }}>
                         {history.length > 0 ? history.map((m, i) => (
-                            <div 
-                                key={i} 
+                            <div
+                                key={i}
                                 className={`flex items-baseline gap-1 cursor-pointer px-1 rounded-sm ${i === currentMoveIdx ? 'text-cr-primary font-bold scale-110' : 'text-cr-text opacity-70'}`}
                                 onClick={() => { syncBoard(i, history); setIsPlaying(false); }}
                             >
                                 {i % 2 === 0 && (
                                     <span className="font-sans text-[0.85rem] text-cr-muted font-bold -mr-0.5">
-                                        {Math.floor(i/2) + 1}.
+                                        {Math.floor(i / 2) + 1}.
                                     </span>
                                 )}
                                 <span>{m.san}</span>
@@ -168,7 +168,6 @@ export default function ChessViewer({ partida }) {
                         )) : (
                             <span className="font-sans text-sm text-cr-muted italic">Partida sin jugadas</span>
                         )}
-                        {/* Resultado eliminado para evitar redundancia */}
                     </div>
                 </div>
             </div>

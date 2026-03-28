@@ -5,6 +5,7 @@ import RegisterPage from '@/pages/auth/RegisterPage'
 import DashboardPage from '@/pages/dashboard/DashboardPage'
 import IntroducirPartidaPage from '@/pages/games/IntroducirPartidaPage'
 import ListadoPartidasPage from '@/pages/games/ListadoPartidasPage'
+import StockfishPage from '@/pages/games/StockfishPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 
 function Loader() {
@@ -42,6 +43,7 @@ export default function AppRouter() {
                     <Route path="/dashboard" element={<DashboardPage />} />
                     <Route path="/games/input" element={<IntroducirPartidaPage />} />
                     <Route path="/games" element={<ListadoPartidasPage />} />
+                    <Route path="/stockfish" element={<StockfishPage />} />
 
                 </Route>
 

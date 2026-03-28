@@ -4,7 +4,9 @@ import {
     Undo2,
     Save,
     LogOut,
-    Loader2
+    Loader2,
+    CheckCircle2,
+    AlertCircle
 } from 'lucide-react'
 import { useState, useCallback, useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
@@ -14,6 +16,8 @@ import InputText from '@/components/ui/InputText'
 import InputDate from '@/components/ui/InputDate'
 import InputSelect from '@/components/ui/InputSelect'
 import Textarea from '@/components/ui/Textarea'
+import Modal from '@/components/ui/Modal'
+import Header from '@/components/layout/Header'
 
 /**
  * Vista para introducir partidas manualmente.
@@ -48,6 +52,17 @@ export default function IntroducirPartidaPage() {
     // Gestión de errores y estados de carga
     const [errors, setErrors] = useState({})
     const [isSaving, setIsSaving] = useState(false)
+
+    // --- ESTADO DEL MODAL ---
+    const [modal, setModal] = useState({ 
+        isOpen: false, 
+        title: '', 
+        message: '', 
+        onConfirm: null, 
+        type: 'success' // 'success' | 'error'
+    })
+
+    const hideModal = () => setModal(prev => ({ ...prev, isOpen: false }))
 
     // Escuchamos los cambios que vienen del componente ChessBoard
     const handleBoardChange = useCallback((status) => {
@@ -129,44 +144,32 @@ export default function IntroducirPartidaPage() {
                 throw new Error(errorData.detail || 'Algo ha fallado al intentar guardar')
             }
 
-            alert('¡Partida guardada con éxito!')
-            navigate('/dashboard')
+            setModal({
+                isOpen: true,
+                title: '¡Éxito!',
+                message: 'La partida se ha guardado correctamente en tu historial.',
+                type: 'success',
+                onConfirm: () => navigate('/dashboard')
+            })
 
         } catch (error) {
             console.error('Error al guardar:', error)
-            alert(error.message || 'Error de conexión con el servidor')
+            setModal({
+                isOpen: true,
+                title: 'Error al guardar',
+                message: error.message || 'Error de conexión con el servidor. Por favor, inténtalo de nuevo.',
+                type: 'error',
+                onConfirm: hideModal
+            })
         } finally {
             setIsSaving(false)
         }
     }
 
-    const handleLogout = () => {
-        logout()
-        navigate('/login')
-    }
 
     return (
         <div className="min-h-screen flex flex-col bg-white">
-
-            {/* Cabecera con logo y botón de cerrar sesión */}
-            <header className="w-full h-32 px-8 md:px-16 flex items-center justify-between bg-white z-10">
-                <div className="pt-6 pl-4">
-                    <Link to="/dashboard" className="transition-opacity hover:opacity-80">
-                        <img src="/logo.svg" alt="Chess Rekognition" className="w-[260px] h-auto" />
-                    </Link>
-                </div>
-
-                <button
-                    onClick={handleLogout}
-                    className="flex flex-col items-center gap-1 group text-cr-muted hover:text-rose-500 transition-colors cursor-pointer shrink-0 mt-6"
-                    title="Salir de la aplicación"
-                >
-                    <div className="p-3 rounded-2xl bg-cr-bg group-hover:bg-rose-50 shadow-sm transition-colors">
-                        <LogOut size={24} />
-                    </div>
-                    <span className="text-[10px] uppercase font-black tracking-widest mt-1">Salir</span>
-                </button>
-            </header>
+            <Header />
 
             <div className="flex-1 flex flex-col md:flex-row relative mt-8">
 
@@ -383,6 +386,29 @@ export default function IntroducirPartidaPage() {
                     <span className="text-[10px] uppercase font-black tracking-widest">Datos</span>
                 </button>
             </div>
+
+            {/* Modal de Feedback Reutilizable */}
+            <Modal
+                isOpen={modal.isOpen}
+                onClose={hideModal}
+                title={modal.title}
+            >
+                <div className="flex flex-col items-center text-center">
+                    <div className={`mb-6 p-4 rounded-3xl ${modal.type === 'success' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
+                        {modal.type === 'success' ? <CheckCircle2 size={48} /> : <AlertCircle size={48} />}
+                    </div>
+                    <p className="text-cr-text font-medium text-lg leading-relaxed mb-10">
+                        {modal.message}
+                    </p>
+                    <Button 
+                        variant="primary" 
+                        className={`w-full h-14 text-sm font-black uppercase tracking-widest shadow-lg ${modal.type === 'success' ? 'shadow-emerald-500/20' : 'shadow-rose-500/20'}`}
+                        onClick={modal.onConfirm}
+                    >
+                        {modal.type === 'success' ? 'Continuar al Dashboard' : 'Entendido'}
+                    </Button>
+                </div>
+            </Modal>
         </div>
     )
 }
