@@ -48,7 +48,7 @@ export default function ChessViewer({ partida }) {
                 game.reset()
                 const simpleMoves = movesOnly.split(/\s+/).filter(m => !m.match(/^\d+\./) && m.length > 1 && !m.match(/^(1-0|0-1|1\/2-1\/2|\*)$/))
                 for (const m of simpleMoves) {
-                    try { game.move(m) } catch { /* ignore */ }
+                    try { game.move(m) } catch (err) { console.warn("Movimiento no válido ignorado:", m, err) }
                 }
                 setHistory(game.history({ verbose: true }))
             }

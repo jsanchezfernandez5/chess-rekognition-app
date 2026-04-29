@@ -61,4 +61,8 @@
         color: var(--color-cr-text);
         -webkit-font-smoothing: antialiased;
     }
+
+    button, a {
+        cursor: pointer;
+    }
 }

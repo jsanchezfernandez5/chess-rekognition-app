@@ -247,7 +247,7 @@ export default function StockfishPage() {
         } finally {
             setIsEngineThinking(false)
         }
-    }, [elo, authFetch])
+    }, [elo, authFetch, setIsEngineThinking])
 
     // Detectar turno del motor
     useEffect(() => {

@@ -70,7 +70,8 @@ export function AuthProvider({ children }) {
                 return r.json()
             })
             .then(data => setUser(data))
-            .catch(async () => {
+            .catch(async (err) => {
+                console.warn("Sesión expirada o no válida, intentando refresh:", err)
                 try {
                     // Intentamos renovar la sesión si el access_token ha expirado
                     const refreshRes = await fetch(`${API}/auth/refresh`, {
@@ -94,12 +95,13 @@ export function AuthProvider({ children }) {
                         const me = await fetch(`${API}/auth/whoami`, {
                             headers: { Authorization: `Bearer ${access_token}` },
                         }).then(r => r.json())
-                        
+
                         setUser(me)
                     } else {
                         logout()
                     }
-                } catch {
+                } catch (err) {
+                    console.error("Fallo definitivo al refrescar token:", err)
                     logout()
                 }
             })
@@ -264,8 +266,8 @@ export function AuthProvider({ children }) {
                         },
                     })
                 }
-            } catch {
-                // Errores de red durante el refresh se tratan como sesión expirada
+            } catch (err) {
+                console.error("Errores de red durante el refresh en authFetch:", err)
             }
 
             // Si la renovación falló o el reintento también devolvió 401

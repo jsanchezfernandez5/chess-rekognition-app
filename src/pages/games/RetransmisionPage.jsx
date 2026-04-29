@@ -1,14 +1,22 @@
 import { useState, useRef, useEffect } from 'react'
-import { Video, Copy, StopCircle, RefreshCw, AlertCircle, SwitchCamera } from 'lucide-react'
+import { SwitchCamera, Share2, Activity, Play, StopCircle, RefreshCw, AlertCircle } from 'lucide-react'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
+import InputText from '@/components/ui/InputText'
+import InputSelect from '@/components/ui/InputSelect'
+import { useAuth } from '@/hooks/useAuth'
 
 export default function RetransmisionPage() {
+    const { authFetch } = useAuth()
     const [token, setToken] = useState(null)
     const [isBroadcasting, setIsBroadcasting] = useState(false)
+    const [isCameraActive, setIsCameraActive] = useState(false)
     const [error, setError] = useState(null)
     const [facingMode, setFacingMode] = useState('environment')
     
+    // Control de pestañas para móvil
+    const [activeTab, setActiveTab] = useState('config')
+
     // UI state for the video
     const videoRef = useRef(null)
     const canvasRef = useRef(null)
@@ -17,6 +25,22 @@ export default function RetransmisionPage() {
 
     const [stats, setStats] = useState({ occupied: 0, total: 64, ping: 0 })
     const [debugImage, setDebugImage] = useState(null)
+
+    // Formulario de configuración (Host)
+    const [formData, setFormData] = useState({
+        evento: '',
+        blancas: '',
+        negras: '',
+        lugar: '',
+        ronda: '',
+        tablero: '',
+        resultado: 'En juego...'
+    })
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target
+        setFormData(prev => ({ ...prev, [name]: value }))
+    }
 
     // Iniciar cámara
     const startCamera = async (mode = facingMode) => {
@@ -29,10 +53,12 @@ export default function RetransmisionPage() {
             })
             if (videoRef.current) {
                 videoRef.current.srcObject = stream
+                setIsCameraActive(true)
             }
         } catch (err) {
             console.error(err)
             setError('No se pudo acceder a la cámara. Revisa los permisos.')
+            setIsCameraActive(false)
         }
     }
 
@@ -54,30 +80,54 @@ export default function RetransmisionPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    const startBroadcast = () => {
-        // Generar token único para la retransmisión
-        const newToken = Math.random().toString(36).substring(2, 10)
-        setToken(newToken)
-        setIsBroadcasting(true)
+    const startBroadcast = async () => {
+        try {
+            // Inicializar retransmisión en el backend
+            const payload = {
+                evento: formData.evento || undefined,
+                blancas: formData.blancas || undefined,
+                negras: formData.negras || undefined,
+                ronda: formData.ronda ? parseInt(formData.ronda) : undefined,
+                tablero: formData.tablero ? parseInt(formData.tablero) : undefined,
+                lugar: formData.lugar || undefined,
+                resultado: formData.resultado || undefined
+            }
 
-        // Conectar WebSocket
-        const wsUrl = `${import.meta.env.VITE_API_URL.replace('http', 'ws')}/retransmision/ws/host/${newToken}`
-        wsRef.current = new WebSocket(wsUrl)
+            const res = await authFetch('/retransmision/host', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            })
+            
+            if (!res.ok) throw new Error('Error al registrar la retransmisión')
+            
+            const data = await res.json()
+            const newToken = data.token
+            
+            setToken(newToken)
+            setIsBroadcasting(true)
 
-        wsRef.current.onopen = () => {
-            console.log("WebSocket Host Conectado")
-            // Iniciar el bucle de captura
-            loopRef.current = setTimeout(processFrame, 500) // 2 FPS para no saturar
-        }
+            // Conectar WebSocket
+            const wsUrl = `${import.meta.env.VITE_API_URL.replace('http', 'ws')}/retransmision/ws/host/${newToken}`
+            wsRef.current = new WebSocket(wsUrl)
 
-        wsRef.current.onerror = () => {
-            setError('Error de conexión WebSocket')
-            stopBroadcast()
-        }
-        
-        wsRef.current.onclose = () => {
-            console.log("WebSocket Host Cerrado")
-            setIsBroadcasting(false)
+            wsRef.current.onopen = () => {
+                console.log("WebSocket Host Conectado")
+                loopRef.current = setTimeout(processFrame, 500)
+                setActiveTab('vision') // Pasar a la pestaña de visión automáticamente en móviles
+            }
+
+            wsRef.current.onerror = () => {
+                setError('Error de conexión WebSocket')
+                stopBroadcast()
+            }
+            
+            wsRef.current.onclose = () => {
+                console.log("WebSocket Host Cerrado")
+                setIsBroadcasting(false)
+            }
+        } catch (err) {
+            console.error("Error iniciando retransmisión:", err)
+            setError('Fallo al registrar la retransmisión. Revisa tu conexión.')
         }
     }
 
@@ -90,6 +140,23 @@ export default function RetransmisionPage() {
         if (loopRef.current) {
             clearTimeout(loopRef.current)
             loopRef.current = null
+        }
+    }
+
+    const stopCameraAndBroadcast = () => {
+        stopBroadcast()
+        if (videoRef.current && videoRef.current.srcObject) {
+            videoRef.current.srcObject.getTracks().forEach(t => t.stop())
+            videoRef.current.srcObject = null
+            setIsCameraActive(false)
+        }
+    }
+
+    const toggleCameraPower = () => {
+        if (isCameraActive) {
+            stopCameraAndBroadcast()
+        } else {
+            startCamera()
         }
     }
 
@@ -127,13 +194,17 @@ export default function RetransmisionPage() {
 
                 if (data.success) {
                     setStats(prev => ({ ...prev, occupied: data.occupied_count, total: data.num_squares }))
-                    setDebugImage(data.debug_image)
+                    setDebugImage(data.rectified_2d || data.debug_image) // Mostrar 2D rectificado en consola
 
                     // Enviar estado al WebSocket para los espectadores
                     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
                         wsRef.current.send(JSON.stringify({
                             type: 'BOARD_STATE',
-                            data: data
+                            // Inyectar metadatos para el espectador
+                            data: {
+                                ...data,
+                                metadata: formData
+                            }
                         }))
                     }
                 }
@@ -147,139 +218,206 @@ export default function RetransmisionPage() {
         }, 'image/jpeg', 0.8)
     }
 
-    const copyLink = () => {
+    const shareLink = async () => {
         if (!token) return
         const link = `${window.location.origin}/retransmision/${token}`
-        navigator.clipboard.writeText(link)
-        alert('Enlace público copiado al portapapeles.')
+        
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'Retransmisión de Ajedrez',
+                    text: `Sigue la partida en directo entre ${formData.blancas || 'Blancas'} y ${formData.negras || 'Negras'}`,
+                    url: link
+                })
+            } catch (err) {
+                console.log("Error compartiendo", err)
+            }
+        } else {
+            navigator.clipboard.writeText(link)
+            alert('Enlace público copiado al portapapeles.')
+        }
     }
 
+    const getTabClass = (tabName) => activeTab !== tabName ? 'hidden md:flex' : 'flex'
+
     return (
-        <div className="min-h-screen flex flex-col bg-white">
+        <div className="min-h-screen flex flex-col bg-white overflow-hidden">
             <Header />
 
-            <div className="flex-1 flex flex-col items-center justify-center p-6 mt-8">
-                <div className="w-full max-w-4xl flex flex-col items-center bg-white p-6 md:p-10 rounded-3xl border border-cr-border/40 shadow-sm">
-                    <div className="text-center mb-8">
-                        <h1 className="font-display text-3xl font-black text-cr-text tracking-tight mb-2">
-                            Retransmisión en Vivo
-                        </h1>
-                        <p className="text-cr-muted font-medium">
-                            Enfoca el tablero con la cámara y comparte la partida en tiempo real.
-                        </p>
-                    </div>
+            <div className="w-full max-w-[1800px] mx-auto pt-8 px-6 md:px-12 lg:px-24 xl:px-32 bg-white">
+                <h1 className="font-display text-3xl font-black text-cr-text tracking-tight">
+                    Partida retransmitida
+                </h1>
+            </div>
 
-                    {error && (
-                        <div className="w-full bg-rose-50 text-rose-500 p-4 rounded-xl flex items-center mb-6 text-sm font-bold">
-                            <AlertCircle className="mr-3" size={20} />
-                            {error}
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
-                        {/* Feed de la Cámara */}
-                        <div className="flex flex-col items-center">
-                            <div className="relative w-full aspect-video bg-gray-900 rounded-2xl overflow-hidden shadow-md">
-                                <video 
-                                    ref={videoRef} 
-                                    autoPlay 
-                                    playsInline 
-                                    muted 
-                                    className="w-full h-full object-cover"
-                                />
-                                <canvas ref={canvasRef} className="hidden" />
-                                {isBroadcasting && (
-                                    <div className="absolute top-4 right-4 flex items-center bg-red-500 text-white px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest animate-pulse shadow-md">
-                                        <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
-                                        En Vivo
-                                    </div>
-                                )}
+            <div className="flex-1 flex flex-col md:flex-row relative mt-4 pb-16 md:pb-0 w-full max-w-[1800px] mx-auto px-0 md:px-12 lg:px-24 xl:px-32">
+                
+                {/* 1. CONFIGURACIÓN */}
+                <div className={`w-full md:w-1/3 flex-col p-6 md:p-10 lg:p-12 bg-white border-r border-cr-border/40 overflow-y-auto ${getTabClass('config')}`}>
+                    <div className="max-w-md mx-auto w-full">
+                        <h2 className="font-display text-2xl font-black text-cr-text tracking-tight mb-8">
+                            Configuración
+                        </h2>
+                        <div className="space-y-4">
+                            <InputText id="evento" name="evento" label="Evento *" value={formData.evento} onChange={handleInputChange} disabled={isBroadcasting} />
+                            <InputText id="blancas" name="blancas" label="Blancas *" value={formData.blancas} onChange={handleInputChange} disabled={isBroadcasting} />
+                            <InputText id="negras" name="negras" label="Negras *" value={formData.negras} onChange={handleInputChange} disabled={isBroadcasting} />
+                            <InputText id="lugar" name="lugar" label="Lugar" value={formData.lugar} onChange={handleInputChange} disabled={isBroadcasting} />
+                            <div className="flex gap-4">
+                                <InputText id="ronda" name="ronda" label="Ronda" value={formData.ronda} onChange={handleInputChange} disabled={isBroadcasting} />
+                                <InputText id="tablero" name="tablero" label="Tablero" value={formData.tablero} onChange={handleInputChange} disabled={isBroadcasting} />
                             </div>
                             
-                            <div className="flex w-full gap-4 mt-6">
-                                {!isBroadcasting ? (
-                                    <>
-                                        <Button 
-                                            variant="primary" 
-                                            className="flex-1 h-14 font-black uppercase tracking-widest"
-                                            onClick={startBroadcast}
-                                        >
-                                            <Video className="mr-2" size={20} />
-                                            Iniciar
-                                        </Button>
-                                        <Button 
-                                            variant="outline" 
-                                            className="h-14 px-4 border-cr-border text-cr-muted hover:text-cr-text hover:bg-cr-bg shrink-0"
-                                            onClick={toggleCamera}
-                                            title="Cambiar cámara"
-                                        >
-                                            <SwitchCamera size={20} />
-                                        </Button>
-                                    </>
-                                ) : (
-                                    <Button 
-                                        variant="outline" 
-                                        className="flex-1 h-14 font-black uppercase tracking-widest text-rose-500 border-rose-500 hover:bg-rose-50"
-                                        onClick={stopBroadcast}
-                                    >
-                                        <StopCircle className="mr-2" size={20} />
-                                        Detener
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Monitor de Estado */}
-                        <div className="flex flex-col">
-                            <div className="bg-cr-bg p-6 rounded-2xl border border-cr-border/40 flex-1 flex flex-col">
-                                <h3 className="font-bold text-cr-text uppercase tracking-widest text-sm mb-4">
-                                    Estado de Emisión
-                                </h3>
-                                
-                                {isBroadcasting ? (
-                                    <div className="flex flex-col space-y-4">
-                                        <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-cr-border/20">
-                                            <span className="text-cr-muted text-xs font-bold uppercase">Casillas Ocupadas</span>
-                                            <span className="font-black text-cr-text text-lg">{stats.occupied} / {stats.total}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-cr-border/20">
-                                            <span className="text-cr-muted text-xs font-bold uppercase">Latencia</span>
-                                            <span className="font-black text-cr-text text-lg">{stats.ping} ms</span>
-                                        </div>
-                                        
-                                        {debugImage && (
-                                            <div className="mt-4 border border-cr-border/40 rounded-xl overflow-hidden shadow-sm">
-                                                <img src={debugImage} alt="Visión Debug" className="w-full object-cover" />
-                                            </div>
-                                        )}
-
-                                        <div className="mt-auto pt-6">
-                                            <label className="block text-[11px] uppercase font-black text-cr-muted mb-2 tracking-widest pl-1">
-                                                Enlace para espectadores
-                                            </label>
-                                            <div className="flex gap-2">
-                                                <input 
-                                                    type="text" 
-                                                    readOnly 
-                                                    value={`${window.location.origin}/retransmision/${token}`}
-                                                    className="flex-1 bg-white border border-cr-border rounded-xl px-4 py-3 text-sm font-medium text-cr-text outline-hidden"
-                                                />
-                                                <Button variant="primary" onClick={copyLink} className="px-4">
-                                                    <Copy size={18} />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="flex-1 flex flex-col items-center justify-center text-cr-muted text-center h-full">
-                                        <RefreshCw size={32} className="mb-4 opacity-20" />
-                                        <p className="font-medium">Inicia la retransmisión para ver los datos de diagnóstico.</p>
-                                    </div>
-                                )}
-                            </div>
+                            {!isBroadcasting ? (
+                                <Button variant="primary" className="w-full mt-6 h-14 font-black uppercase tracking-widest shadow-lg shadow-cr-primary/20" onClick={startBroadcast}>
+                                    Activar Visión IA
+                                </Button>
+                            ) : (
+                                <div className="mt-6 p-4 bg-emerald-50 text-emerald-600 rounded-xl font-bold flex items-center justify-center text-sm border border-emerald-100">
+                                    <Activity size={18} className="mr-2 animate-pulse" />
+                                    Visión IA Activada
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
+
+                {/* 2. VISIÓN IA */}
+                <div className={`w-full md:w-1/3 flex-col p-6 md:p-10 lg:p-12 bg-white border-r border-cr-border/40 overflow-y-auto ${getTabClass('vision')}`}>
+                    <div className="max-w-md mx-auto w-full">
+                        <h2 className="font-display text-2xl font-black text-cr-text tracking-tight mb-8">
+                            Visión IA
+                        </h2>
+                        
+                        {error && (
+                            <div className="w-full bg-rose-50 text-rose-500 p-3 rounded-xl flex items-center mb-4 text-xs font-bold">
+                                <AlertCircle className="mr-2" size={16} />
+                                {error}
+                            </div>
+                        )}
+
+                        <div className="relative w-full aspect-video bg-gray-900 rounded-2xl overflow-hidden shadow-inner mb-4 border-[3px] border-cr-border">
+                            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                            <canvas ref={canvasRef} className="hidden" />
+                            
+                            {isBroadcasting && (
+                                <div className="absolute top-4 right-4 flex items-center bg-emerald-500 text-white px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-md">
+                                    <span className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></span>
+                                    En Vivo
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3 mb-8">
+                            <Button variant="outline" className="flex-1 text-xs font-bold uppercase" onClick={toggleCamera}>
+                                <SwitchCamera size={16} className="mr-2" />
+                                Cambiar
+                            </Button>
+                            <Button 
+                                variant="outline" 
+                                className={`flex-1 text-xs font-bold uppercase ${isCameraActive ? 'text-rose-500 hover:bg-rose-50 border-rose-500/30' : 'text-emerald-500 hover:bg-emerald-50 border-emerald-500/30'}`} 
+                                onClick={toggleCameraPower}
+                            >
+                                {isCameraActive ? (
+                                    <><StopCircle size={16} className="mr-2" /> Parar</>
+                                ) : (
+                                    <><Play size={16} className="mr-2" /> Activar</>
+                                )}
+                            </Button>
+                        </div>
+
+                        <div className="mb-4">
+                            <InputSelect 
+                                id="resultado" 
+                                name="resultado" 
+                                label="Resultado" 
+                                value={formData.resultado} 
+                                onChange={handleInputChange}
+                                options={[
+                                    { value: 'En juego...', label: 'En juego...' },
+                                    { value: '1-0', label: '1-0 (Blancas)' },
+                                    { value: '0-1', label: '0-1 (Negras)' },
+                                    { value: '1/2-1/2', label: '1/2-1/2 (Tablas)' }
+                                ]}
+                            />
+                        </div>
+
+                        <div className="space-y-3 mt-8">
+                            <Button variant="primary" className="w-full font-black uppercase tracking-widest h-14" onClick={shareLink} disabled={!isBroadcasting}>
+                                <Share2 size={18} className="mr-3" />
+                                Compartir Retransmisión
+                            </Button>
+                            <Button variant="outline" className="w-full font-black uppercase tracking-widest h-14 text-rose-500 border-rose-200 hover:bg-rose-50" onClick={stopBroadcast} disabled={!isBroadcasting}>
+                                Finalizar Retransmisión
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 3. CONSOLA */}
+                <div className={`w-full md:w-1/3 flex-col p-6 md:p-10 lg:p-12 bg-white overflow-y-auto ${getTabClass('console')}`}>
+                    <div className="max-w-md mx-auto w-full flex flex-col h-full">
+                        <h2 className="font-display text-2xl font-black text-cr-text tracking-tight mb-8">
+                            Consola
+                        </h2>
+
+                        <h3 className="font-bold text-cr-text uppercase tracking-widest text-[11px] mb-3">
+                            Tablero rectificado (vista cenital)
+                        </h3>
+                        
+                        <div className="w-full max-w-[260px] mx-auto aspect-square bg-white rounded-2xl overflow-hidden border border-cr-border shadow-sm flex items-center justify-center p-2 mb-6">
+                            {debugImage ? (
+                                <img src={debugImage} alt="Visión Debug" className="w-full h-full object-contain rounded-xl" />
+                            ) : (
+                                <div className="flex flex-col items-center text-cr-muted opacity-50">
+                                    <RefreshCw size={32} className="mb-2" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Esperando datos</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <h3 className="font-bold text-cr-text uppercase tracking-widest text-[11px] mb-3">
+                            Registro de actividad
+                        </h3>
+                        
+                        <div className="bg-white border border-cr-border rounded-xl p-4 h-[160px] overflow-y-auto text-xs font-mono w-full">
+                            {isBroadcasting ? (
+                                <div className="space-y-4">
+                                    <div className="text-emerald-600">
+                                        <p>[{new Date().toLocaleTimeString()}]</p>
+                                        <p>Conexión WS establecida ({stats.ping}ms)</p>
+                                        <p>Homografía correcta</p>
+                                        <p>Casillas ocupadas: {stats.occupied}/{stats.total}</p>
+                                    </div>
+                                    <div className="text-cr-muted">
+                                        <p>Token de sesión: {token}</p>
+                                        <p>Enlace copiable disponible.</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-cr-muted italic">
+                                    La consola está inactiva.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Menú inferior para móviles */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-cr-border flex items-stretch z-50">
+                <button onClick={() => setActiveTab('config')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${activeTab === 'config' ? 'text-cr-primary' : 'text-cr-muted'}`}>
+                    <div className={`w-8 h-1 rounded-full mb-1 transition-all ${activeTab === 'config' ? 'bg-cr-primary' : 'bg-transparent'}`} />
+                    <span className="text-[10px] uppercase font-black tracking-widest">Config</span>
+                </button>
+                <button onClick={() => setActiveTab('vision')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${activeTab === 'vision' ? 'text-cr-primary' : 'text-cr-muted'}`}>
+                    <div className={`w-8 h-1 rounded-full mb-1 transition-all ${activeTab === 'vision' ? 'bg-cr-primary' : 'bg-transparent'}`} />
+                    <span className="text-[10px] uppercase font-black tracking-widest">Visión IA</span>
+                </button>
+                <button onClick={() => setActiveTab('console')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${activeTab === 'console' ? 'text-cr-primary' : 'text-cr-muted'}`}>
+                    <div className={`w-8 h-1 rounded-full mb-1 transition-all ${activeTab === 'console' ? 'bg-cr-primary' : 'bg-transparent'}`} />
+                    <span className="text-[10px] uppercase font-black tracking-widest">Consola</span>
+                </button>
             </div>
         </div>
     )
