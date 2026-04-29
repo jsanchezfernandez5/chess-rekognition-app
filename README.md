@@ -45,7 +45,7 @@ app/
 │   ├── pages/              # Páginas vinculadas directamente a la navegación web
 │   │   ├── auth/           # Vistas de autenticación (Login, Registro)
 │   │   ├── games/          # Vistas privadas (Introducción de partidas, Retransmisión)
-│   │   └── public/         # Vistas públicas sin autenticación (Espectador, 404)
+│   │   └── public/         # Vistas públicas sin autenticación (Retransmisión Pública, 404)
 │   ├── router/             # Centralización del árbol de rutas de la Aplicación
 │   ├── App.jsx             # Punto de entrada de React, Router Wrapper
 │   ├── index.css           # Cimientos visuales y Variables Globales del @theme v4
