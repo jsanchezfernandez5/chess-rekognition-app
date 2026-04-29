@@ -81,6 +81,14 @@ export default function RetransmisionPage() {
     }, [])
 
     const startBroadcast = async () => {
+        // Validación de campos obligatorios
+        if (!formData.evento || !formData.blancas || !formData.negras) {
+            setError('Por favor, rellena los campos obligatorios: Evento, Blancas y Negras.')
+            return
+        }
+
+        setError(null) // Limpiar errores previos
+
         try {
             // Inicializar retransmisión en el backend
             const payload = {
