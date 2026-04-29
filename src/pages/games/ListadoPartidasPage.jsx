@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
     LogOut,
     Loader2,
@@ -13,8 +13,7 @@ import Header from '@/components/layout/Header'
  * Listado de Partidas - ARMONIZADO TOTALMENTE con IntroducirPartidaPage.
  */
 export default function ListadoPartidasPage() {
-    const { logout, authFetch } = useAuth()
-    const navigate = useNavigate()
+    const { authFetch } = useAuth()
 
     const [partidas, setPartidas] = useState([])
     const [loading, setLoading] = useState(true)
@@ -39,6 +38,7 @@ export default function ListadoPartidasPage() {
             }
         }
         fetchPartidas()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
 

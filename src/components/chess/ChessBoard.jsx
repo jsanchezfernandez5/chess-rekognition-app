@@ -12,8 +12,7 @@ export default function ChessBoard({
     // Referencia al motor de juego (chess.js) para que no se pierda entre renders
     const game = useRef(new Chess(initialFen === 'start' ? undefined : initialFen))
     
-    // El FEN es lo que hace que el tablero visual se actualice
-    const [fen, setFen] = useState(game.current.fen())
+    const [fen, setFen] = useState(() => new Chess(initialFen === 'start' ? undefined : initialFen).fen())
     
     // Control del modal para cuando un peón llega al final
     const [showPromotionModal, setShowPromotionModal] = useState(false)
@@ -77,7 +76,7 @@ export default function ChessBoard({
             setFen(game.current.fen())
             notifyChange()
             return true
-        } catch (e) {
+        } catch {
             return false
         }
     }

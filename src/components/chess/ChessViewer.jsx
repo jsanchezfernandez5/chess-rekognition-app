@@ -25,6 +25,7 @@ export default function ChessViewer({ partida }) {
     // Resetear al cambiar la partida
     useEffect(() => {
         if (!partida) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setHistory([])
             setFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
             setCurrentMoveIdx(-1)

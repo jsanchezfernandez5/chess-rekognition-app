@@ -99,7 +99,7 @@ export function AuthProvider({ children }) {
                     } else {
                         logout()
                     }
-                } catch (err) {
+                } catch {
                     logout()
                 }
             })

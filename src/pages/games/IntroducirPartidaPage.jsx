@@ -24,7 +24,7 @@ import Header from '@/components/layout/Header'
  * Aquí podemos 'jugar' la partida en el tablero y rellenar los datos del torneo.
  */
 export default function IntroducirPartidaPage() {
-    const { logout, authFetch } = useAuth()
+    const { authFetch } = useAuth()
     const navigate = useNavigate()
     const boardRef = useRef(null)
     
