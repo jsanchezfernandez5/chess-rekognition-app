@@ -45,7 +45,7 @@ export default function AppRouter() {
                     <Route path="/dashboard" element={<DashboardPage />} />
                     <Route path="/games/input" element={<IntroducirPartidaPage />} />
                     <Route path="/games" element={<ListadoPartidasPage />} />
-                    <Route path="/games/retransmision" element={<RetransmisionPage />} />
+                    <Route path="/games/live" element={<RetransmisionPage />} />
                     <Route path="/stockfish" element={<StockfishPage />} />
 
                 </Route>
