@@ -1,6 +1,4 @@
-/**
- * Componente base para selección de fechas.
- */
+// Componente base para selección de fechas
 export default function InputDate({
     id,
     name,

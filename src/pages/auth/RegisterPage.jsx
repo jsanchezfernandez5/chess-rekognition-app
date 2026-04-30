@@ -7,6 +7,7 @@ import InputPassword from '@/components/ui/InputPassword'
 import Button from '@/components/ui/Button'
 import { useAuth } from '@/hooks/useAuth'
 
+// Formulario de registro de usuario
 export default function RegisterPage() {
     const { register } = useAuth()
     const navigate = useNavigate()
@@ -18,12 +19,14 @@ export default function RegisterPage() {
     const [success, setSuccess] = useState('')
     const [loading, setLoading] = useState(false)
 
+    // Maneja los cambios en los campos del formulario
     function handleChange(e) {
         const { name, value } = e.target
         setForm(f => ({ ...f, [name]: value }))
         setErrors(errs => ({ ...errs, [name]: '' }))
     }
 
+    // Valida los campos del formulario
     function validate() {
         const next = {}
         if (!form.nombre.trim()) next.nombre = 'El nombre es obligatorio'
@@ -50,6 +53,7 @@ export default function RegisterPage() {
         }
     }
 
+    // Renderizado del formulario de registro de usuario
     return (
         <AuthLayout>
             <form onSubmit={handleSubmit} className="flex flex-col gap-3.5" noValidate>

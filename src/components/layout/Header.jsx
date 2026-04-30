@@ -2,10 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
-/**
- * Componente de Cabecera Global.
- * Centraliza el Logo y la acción de Cerrar Sesión.
- */
+// Header global
 export default function Header() {
     const { logout } = useAuth()
     const navigate = useNavigate()
@@ -15,6 +12,7 @@ export default function Header() {
         navigate('/login')
     }
 
+    // Renderizado del header
     return (
         <header className="w-full h-32 px-8 md:px-16 flex items-center justify-between bg-white z-10 shrink-0">
             <div className="pt-6 pl-4">
@@ -22,8 +20,8 @@ export default function Header() {
                     <img src="/logo.svg" alt="Chess Rekognition" className="w-[260px] h-auto" />
                 </Link>
             </div>
-            
-            <button 
+
+            <button
                 onClick={handleLogout}
                 className="flex flex-col items-center gap-1 group text-cr-muted hover:text-rose-500 transition-colors cursor-pointer shrink-0 mt-6"
                 title="Salir de la aplicación"

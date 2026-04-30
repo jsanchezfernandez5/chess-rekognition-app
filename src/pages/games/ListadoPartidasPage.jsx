@@ -1,20 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import {
-    LogOut,
-    Loader2,
-    Inbox
-} from 'lucide-react'
+import { Loader2, Inbox } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import ChessViewer from '@/components/chess/ChessViewer'
 import Header from '@/components/layout/Header'
 
-/**
- * Listado de Partidas - ARMONIZADO TOTALMENTE con IntroducirPartidaPage.
- */
 export default function ListadoPartidasPage() {
     const { authFetch } = useAuth()
-
     const [partidas, setPartidas] = useState([])
     const [loading, setLoading] = useState(true)
     const [selectedIdx, setSelectedIdx] = useState(0)
@@ -41,7 +32,7 @@ export default function ListadoPartidasPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-
+    // Seleccionar partida
     const selectPartida = (idx) => {
         setSelectedIdx(idx)
         // En móvil/tablet, saltar al visor tras seleccionar
@@ -50,8 +41,10 @@ export default function ListadoPartidasPage() {
         }
     }
 
+    // Partida seleccionada
     const partidaSeleccionada = partidas[selectedIdx] || null
 
+    // Loading
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-white">
@@ -60,6 +53,7 @@ export default function ListadoPartidasPage() {
         )
     }
 
+    // 
     return (
         <div className="min-h-screen flex flex-col bg-white">
             <Header />

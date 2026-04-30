@@ -1,18 +1,7 @@
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 
-/**
- * Componente Modal Genérico y Reutilizable.
- * Utiliza Framer Motion para animaciones y Backdrop Blur para un diseño premium.
- * 
- * @param {Object} props - Propiedades del componente.
- * @param {boolean} props.isOpen - Indica si el modal está visible.
- * @param {Function} props.onClose - Función para cerrar el modal.
- * @param {string} props.title - Título opcional del modal.
- * @param {React.ReactNode} props.children - Contenido del modal.
- * @param {string} [props.maxWidth='max-w-md'] - Ancho máximo del modal.
- */
+// Modal genérico
 export default function Modal({ isOpen, onClose, title, children, maxWidth = 'max-w-md' }) {
     return (
         <AnimatePresence>

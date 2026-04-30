@@ -1,6 +1,4 @@
-/**
- * Componente base para desplegables (select).
- */
+// Componente base para desplegables
 export default function InputSelect({
     id,
     name,

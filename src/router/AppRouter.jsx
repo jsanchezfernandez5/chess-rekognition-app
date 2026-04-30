@@ -10,6 +10,7 @@ import RetransmisionPage from '@/pages/games/RetransmisionPage'
 import RetransmisionPublicaPage from '@/pages/public/RetransmisionPublicaPage'
 import NotFoundPage from '@/pages/public/NotFoundPage'
 
+// Componente Loader que se muestra mientras se carga la aplicación.
 function Loader() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-cr-bg">
@@ -18,18 +19,23 @@ function Loader() {
     )
 }
 
+// Componente PrivateRoute que protege las rutas privadas.
+// Si el usuario no está autenticado, redirige a la página de login.
 function PrivateRoute() {
     const { isAuthenticated, loading } = useAuth()
     if (loading) return <Loader />
     return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />
 }
 
+// Componente PublicRoute que protege las rutas públicas.
+// Si el usuario está autenticado, redirige a la página de dashboard.
 function PublicRoute() {
     const { isAuthenticated, loading } = useAuth()
     if (loading) return <Loader />
     return isAuthenticated ? <Navigate to="/dashboard" replace /> : <Outlet />
 }
 
+// Exporta el componente AppRouter que contiene todas las rutas de la aplicación.
 export default function AppRouter() {
     return (
         <BrowserRouter>
@@ -47,7 +53,6 @@ export default function AppRouter() {
                     <Route path="/games" element={<ListadoPartidasPage />} />
                     <Route path="/games/live" element={<RetransmisionPage />} />
                     <Route path="/stockfish" element={<StockfishPage />} />
-
                 </Route>
 
                 {/* Rutas Públicas (sin Auth y sin redirección de Auth) */}

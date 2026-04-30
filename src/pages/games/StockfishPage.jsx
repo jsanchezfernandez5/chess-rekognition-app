@@ -1,22 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { 
-    Flag, 
-    Download, 
-    ChevronDown,
-    Swords,
-    HelpCircle,
-    AlertCircle
-} from 'lucide-react'
+import { Flag, Download, ChevronDown, Swords, HelpCircle, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import Button from '@/components/ui/Button'
 import ChessBoard from '@/components/chess/ChessBoard'
 import Modal from '@/components/ui/Modal'
 import Header from '@/components/layout/Header'
 
-/**
- * Componentes de UI extraídos fuera para evitar remontajes innecesarios
- */
-
+// Componentes de UI extraídos fuera para evitar remontajes innecesarios
 const ConfigForm = ({ playerColor, setPlayerColor, elo, setElo, handleStartGame, eloLevels }) => (
     <div className="w-full max-w-[500px] mx-auto flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="mb-10 text-center">
@@ -31,7 +21,7 @@ const ConfigForm = ({ playerColor, setPlayerColor, elo, setElo, handleStartGame,
                     Elige tu color
                 </label>
                 <div className="relative group">
-                    <select 
+                    <select
                         value={playerColor}
                         onChange={(e) => setPlayerColor(e.target.value)}
                         className="w-full h-14 appearance-none bg-cr-bg border-2 border-transparent focus:border-cr-primary/20 rounded-2xl px-6 text-base font-bold text-cr-text transition-all outline-hidden cursor-pointer"
@@ -48,7 +38,7 @@ const ConfigForm = ({ playerColor, setPlayerColor, elo, setElo, handleStartGame,
                     Nivel de ELO
                 </label>
                 <div className="relative group">
-                    <select 
+                    <select
                         value={elo}
                         onChange={(e) => setElo(Number(e.target.value))}
                         className="w-full h-14 appearance-none bg-cr-bg border-2 border-transparent focus:border-cr-primary/20 rounded-2xl px-6 text-base font-bold text-cr-text transition-all outline-hidden cursor-pointer"
@@ -73,20 +63,21 @@ const ConfigForm = ({ playerColor, setPlayerColor, elo, setElo, handleStartGame,
     </div>
 )
 
-const GameArea = ({ 
-    status, 
-    isGameOver, 
-    isEngineThinking, 
-    statusText, 
-    indicatorColor, 
-    elo, 
-    playerColor, 
-    boardRef, 
-    handleBoardChange, 
-    gameKey, 
-    handleAbandonar, 
-    handleDownloadPGN, 
-    moveHistory 
+// Renderiza el área de juego
+const GameArea = ({
+    status,
+    isGameOver,
+    isEngineThinking,
+    statusText,
+    indicatorColor,
+    elo,
+    playerColor,
+    boardRef,
+    handleBoardChange,
+    gameKey,
+    handleAbandonar,
+    handleDownloadPGN,
+    moveHistory
 }) => {
     return (
         <div className="w-full max-w-[500px] mx-auto flex flex-col gap-6 items-center animate-in fade-in slide-in-from-right-4 duration-500 pb-20 md:pb-0">
@@ -103,7 +94,7 @@ const GameArea = ({
             </div>
 
             <div className={`w-full transition-all duration-500 ${isEngineThinking ? 'opacity-50 grayscale-[0.3]' : 'opacity-100'}`}>
-                <ChessBoard 
+                <ChessBoard
                     key={gameKey}
                     actionRef={boardRef}
                     onChange={handleBoardChange}
@@ -113,7 +104,7 @@ const GameArea = ({
 
             <div className="min-h-[50px] flex items-center justify-center w-full mt-2">
                 {status === 'playing' && !isGameOver && (
-                    <Button 
+                    <Button
                         onClick={handleAbandonar}
                         variant="primary"
                         className="h-14 uppercase font-black tracking-[0.2em] text-xs flex items-center justify-center gap-3 px-10 shadow-xl shadow-cr-primary/20"
@@ -127,7 +118,7 @@ const GameArea = ({
             <div className="w-full space-y-3 mt-4">
                 <div className="flex items-center justify-between px-1">
                     <label className="text-[12px] uppercase font-black text-cr-muted tracking-widest pl-2">Notación PGN</label>
-                    <button 
+                    <button
                         className="p-2 text-cr-text hover:text-cr-primary transition-all cursor-pointer"
                         title="Descargar PGN"
                         onClick={() => handleDownloadPGN()}
@@ -135,18 +126,18 @@ const GameArea = ({
                         <Download size={30} />
                     </button>
                 </div>
-                <div 
+                <div
                     className="w-full h-40 p-6 bg-cr-bg rounded-[30px] shadow-inner overflow-y-auto"
                 >
                     <div className="flex flex-wrap gap-x-4 gap-y-4" style={{ fontFamily: '"Figurine", serif', fontSize: '1.4rem' }}>
                         {moveHistory.length > 0 ? moveHistory.map((m, i) => (
-                            <div 
-                                key={i} 
+                            <div
+                                key={i}
                                 className="flex items-baseline gap-1"
                             >
                                 {i % 2 === 0 && (
                                     <span className="font-sans text-[0.85rem] text-cr-muted font-bold -mr-0.5">
-                                        {Math.floor(i/2) + 1}.
+                                        {Math.floor(i / 2) + 1}.
                                     </span>
                                 )}
                                 <span className="text-cr-text">{m.san}</span>
@@ -186,11 +177,11 @@ export default function StockfishPage() {
     const [view, setView] = useState('config') // Para móvil: 'config' | 'play'
 
     // --- ESTADO DEL MODAL ---
-    const [modal, setModal] = useState({ 
-        isOpen: false, 
-        title: '', 
-        message: '', 
-        onConfirm: null, 
+    const [modal, setModal] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: null,
         onClose: null,
         cancelLabel: 'No, gracias',
         confirmLabel: 'Confirmar',
@@ -212,6 +203,7 @@ export default function StockfishPage() {
         { label: 'Super GM (3100)', value: 3100 },
     ]
 
+    // Control del tablero
     const handleBoardChange = useCallback((snapshot) => {
         setCurrentFen(snapshot.fen)
         setCurrentTurn(snapshot.turn)
@@ -221,6 +213,7 @@ export default function StockfishPage() {
         setMoveHistory(snapshot.history)
     }, [])
 
+    // Obtener el movimiento del motor
     const getEngineMove = useCallback(async (fen) => {
         setIsEngineThinking(true)
         try {
@@ -228,7 +221,7 @@ export default function StockfishPage() {
                 method: 'POST',
                 body: JSON.stringify({ fen, elo, depth: 15 })
             })
-            
+
             if (res.ok) {
                 const data = await res.json()
                 let attempts = 0
@@ -259,6 +252,7 @@ export default function StockfishPage() {
         return () => clearTimeout(engineTimerRef.current)
     }, [currentFen, currentTurn, isGameOver, playerColor, status, getEngineMove])
 
+    // Iniciar nueva partida
     const handleStartGame = () => {
         setStatus('playing')
         setView('play')
@@ -303,6 +297,7 @@ export default function StockfishPage() {
         })
     }
 
+    // Confirmar abandono
     const confirmAbandon = () => {
         setStatus('config')
         setView('config')
@@ -319,7 +314,7 @@ export default function StockfishPage() {
     // Cálculos para GameArea
     const isPlayerTurn = status === 'playing' && currentTurn === playerColor
     const indicatorColor = status !== 'playing' ? 'bg-cr-border' : (!isPlayerTurn && !isGameOver ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500')
-    
+
     let statusText = 'Esperando duelo...'
     if (status === 'playing') {
         if (isGameOver) statusText = 'Partida Finalizada'
@@ -327,11 +322,12 @@ export default function StockfishPage() {
         else statusText = 'Stockfish pensando...'
     }
 
+    // Descargar PGN
     const handleDownloadPGN = (currentResult = null) => {
         const today = new Date().toISOString().split('T')[0].replace(/-/g, '.')
         const result = currentResult || gameResult
         const engineName = `Stockfish v17.1 (ELO ${elo})`
-        
+
         const fullPgn = [
             `[Event "Duelo de Entrenamiento"]`,
             `[Site "Chess Rekognition"]`,
@@ -344,7 +340,7 @@ export default function StockfishPage() {
         ].join('\n')
 
         const element = document.createElement("a");
-        const file = new Blob([fullPgn], {type: 'text/plain'});
+        const file = new Blob([fullPgn], { type: 'text/plain' });
         element.href = URL.createObjectURL(file);
         element.download = `stockfish_vs_${userFullName.replace(/\s+/g, '_')}_${elo}.pgn`;
         document.body.appendChild(element);
@@ -352,15 +348,16 @@ export default function StockfishPage() {
         hideModal()
     }
 
+    // Renderizado de la página
     return (
         <div className="min-h-screen flex flex-col bg-white overflow-x-hidden">
             <Header />
 
             <div className="flex-1 flex flex-col md:flex-row relative mt-8">
-                
+
                 <div className={`w-full md:w-1/2 flex flex-col p-6 md:p-10 lg:p-12 border-r border-cr-border/40 ${view !== 'config' ? 'hidden md:flex' : 'flex'}`}>
                     <div className="flex-1 flex items-start justify-center w-full pt-10">
-                        <ConfigForm 
+                        <ConfigForm
                             playerColor={playerColor}
                             setPlayerColor={setPlayerColor}
                             elo={elo}
@@ -373,7 +370,7 @@ export default function StockfishPage() {
 
                 <div className={`w-full md:w-1/2 flex flex-col bg-white p-6 md:p-10 lg:p-12 overflow-y-auto ${view !== 'play' ? 'hidden md:flex' : 'flex'}`}>
                     <div className="flex-1 flex items-center justify-center w-full">
-                        <GameArea 
+                        <GameArea
                             status={status}
                             isGameOver={isGameOver}
                             isEngineThinking={isEngineThinking}
@@ -417,15 +414,15 @@ export default function StockfishPage() {
                         {modal.message}
                     </p>
                     <div className="flex w-full gap-4">
-                        <Button 
-                            variant="primary" 
+                        <Button
+                            variant="primary"
                             className="bg-cr-bg hover:bg-cr-border/40 text-cr-muted border-0 shadow-none flex-1 font-bold text-sm"
                             onClick={modal.onClose || hideModal}
                         >
                             {modal.cancelLabel}
                         </Button>
-                        <Button 
-                            variant="primary" 
+                        <Button
+                            variant="primary"
                             className="flex-1 shadow-lg shadow-cr-primary/20 font-bold text-sm"
                             onClick={modal.onConfirm}
                         >

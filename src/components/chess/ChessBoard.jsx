@@ -11,9 +11,10 @@ export default function ChessBoard({
 }) {
     // Referencia al motor de juego (chess.js) para que no se pierda entre renders
     const game = useRef(new Chess(initialFen === 'start' ? undefined : initialFen))
-    
+
+    // Estado que mantiene el FEN (estado actual) del tablero
     const [fen, setFen] = useState(() => new Chess(initialFen === 'start' ? undefined : initialFen).fen())
-    
+
     // Control del modal para cuando un peón llega al final
     const [showPromotionModal, setShowPromotionModal] = useState(false)
     const [movePendingPromotion, setMovePendingPromotion] = useState(null)
@@ -38,8 +39,8 @@ export default function ChessBoard({
                     game: game.current,
                     turn: game.current.turn(),
                     isGameOver: game.current.isGameOver(),
-                    gameResult: game.current.isGameOver() 
-                        ? (game.current.isDraw() ? '1/2-1/2' : (game.current.turn() === 'w' ? '0-1' : '1-0')) 
+                    gameResult: game.current.isGameOver()
+                        ? (game.current.isDraw() ? '1/2-1/2' : (game.current.turn() === 'w' ? '0-1' : '1-0'))
                         : '*'
                 })
             }
@@ -84,13 +85,13 @@ export default function ChessBoard({
     // Se ejecuta cuando el usuario elige la pieza (Dama, Torre...) en el modal
     function handlePromotion(pieceType) {
         if (!movePendingPromotion) return
-        
+
         game.current.move({
             from: movePendingPromotion.from,
             to: movePendingPromotion.to,
             promotion: pieceType
         })
-        
+
         setFen(game.current.fen())
         notifyChange()
         setMovePendingPromotion(null)
@@ -101,15 +102,15 @@ export default function ChessBoard({
     useEffect(() => {
         if (!actionRef) return
         actionRef.current = {
-            undo: () => { 
-                game.current.undo() 
-                setFen(game.current.fen()) 
-                notifyChange() 
+            undo: () => {
+                game.current.undo()
+                setFen(game.current.fen())
+                notifyChange()
             },
-            reset: () => { 
-                game.current.reset() 
-                setFen(game.current.fen()) 
-                notifyChange() 
+            reset: () => {
+                game.current.reset()
+                setFen(game.current.fen())
+                notifyChange()
             },
             move: (m) => {
                 const res = game.current.move(m)

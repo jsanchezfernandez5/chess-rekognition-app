@@ -2,19 +2,9 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import Button from '@/components/ui/Button'
 import TypewriterText from '@/components/ui/TypewriterText'
-import { 
-    LogOut, 
-    PlusCircle, 
-    Swords, 
-    Radio, 
-    LayoutList 
-} from 'lucide-react'
+import { LogOut, PlusCircle, Swords, Radio, LayoutList } from 'lucide-react'
 
-/**
- * Página principal del panel de control (Dashboard).
- * Rediseñada para coincidir exactamente con la estética de las pantallas de acceso (Login/Registro).
- * Utiliza un diseño de panel dividido con elementos de marca consistentes.
- */
+// Página principal del panel de control (Dashboard).
 export default function DashboardPage() {
     const { user, logout } = useAuth()
     const navigate = useNavigate()
@@ -22,9 +12,7 @@ export default function DashboardPage() {
     // Nombre a mostrar (prioriza nombre real sobre username)
     const nombre = user?.nombre || user?.username || 'jugador'
 
-    /**
-     * Cierra la sesión y redirige al inicio.
-     */
+    // Cierra la sesión y redirige al inicio.
     const handleLogout = () => {
         logout()
         navigate('/login')
@@ -32,43 +20,44 @@ export default function DashboardPage() {
 
     // Definición de acciones según el sketch, con los nombres solicitados
     const ACCIONES = [
-        { 
-            label: 'Introducir partidas', 
-            path: '/games/input', 
-            icon: <PlusCircle size={20} /> 
+        {
+            label: 'Introducir partidas',
+            path: '/games/input',
+            icon: <PlusCircle size={20} />
         },
-        { 
-            label: 'Juega vs StockFish', 
-            path: '/stockfish', 
-            icon: <Swords size={20} /> 
+        {
+            label: 'Juega vs StockFish',
+            path: '/stockfish',
+            icon: <Swords size={20} />
         },
-        { 
-            label: 'Partida retransmitida', 
-            path: '/games/live', 
-            icon: <Radio size={20} /> 
+        {
+            label: 'Partida retransmitida',
+            path: '/games/live',
+            icon: <Radio size={20} />
         },
-        { 
-            label: 'Listado de partidas', 
-            path: '/games', 
-            icon: <LayoutList size={20} /> 
+        {
+            label: 'Listado de partidas',
+            path: '/games',
+            icon: <LayoutList size={20} />
         },
     ]
 
+    // Renderizado de la página del panel de control (Dashboard).
     return (
         <div className="min-h-screen flex items-stretch bg-white">
-            
+
             {/* ── PANEL IZQUIERDO (FORMULARIO / ACCIONES) ── */}
             <div className="flex-1 flex flex-col justify-center items-center px-6 py-12 md:px-16 lg:px-24 bg-white relative z-10 shadow-[20px_0_40px_-20px_rgba(0,0,0,0.05)]">
-                
+
                 <div className="w-full max-w-[360px]">
-                    
+
                     {/* Header: Logo y Salir */}
                     <div className="flex items-center justify-between mb-8 px-2">
                         <Link to="/dashboard" title="Ir al Dashboard" className="shrink-0 transition-opacity hover:opacity-80">
                             <img src="/logo.svg" alt="Chess Rekognition" className="w-[260px] h-auto" />
                         </Link>
-                        
-                        <button 
+
+                        <button
                             onClick={handleLogout}
                             className="flex flex-col items-center gap-1 group text-cr-muted hover:text-rose-500 transition-colors cursor-pointer shrink-0"
                             title="Cerrar sesión"
@@ -111,7 +100,7 @@ export default function DashboardPage() {
 
             {/* ── PANEL DERECHO (IMAGEN / TYPEWRITER — IDÉNTICO A LOGIN) ── */}
             <div className="hidden md:flex relative w-1/2 flex-col justify-center items-center bg-cr-bg overflow-hidden border-l border-cr-border/60">
-                
+
                 {/* Imagen de fondo (Misma que en AuthLayout) */}
                 <img
                     src="https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&q=80&w=1200"

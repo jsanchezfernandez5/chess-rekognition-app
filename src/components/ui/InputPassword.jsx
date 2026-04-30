@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 
+// Campo de entrada de contraseña con toggle de visibilidad
 export default function InputPassword({
     id,
     name = 'password',

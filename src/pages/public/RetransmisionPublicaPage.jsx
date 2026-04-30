@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Loader2, AlertCircle, Eye, Activity, Share2, Download } from 'lucide-react'
+import { Loader2, AlertCircle, Activity, Share2, Download } from 'lucide-react'
 import Button from '@/components/ui/Button'
 
+// Componente que muestra una retransmisión pública de una partida de ajedrez.
+// Requiere un token para acceder a la retransmisión.
 export default function RetransmisionPublicaPage() {
     const { token } = useParams()
     const [status, setStatus] = useState('connecting') // connecting, connected, error, waiting
@@ -10,6 +12,8 @@ export default function RetransmisionPublicaPage() {
     const [errorMsg, setErrorMsg] = useState('')
     const wsRef = useRef(null)
 
+    // Hook que se ejecuta cuando el componente se monta o cuando cambia el token.
+    // Verifica si la retransmisión existe y se conecta al WebSocket.
     useEffect(() => {
         // Primero verificamos si la retransmisión existe vía HTTP
         const checkStatus = async () => {
@@ -28,6 +32,7 @@ export default function RetransmisionPublicaPage() {
             }
         }
 
+        // Conecta al WebSocket para recibir las actualizaciones de la retransmisión.
         const connectWebSocket = () => {
             const wsUrl = `${import.meta.env.VITE_API_URL.replace('http', 'ws')}/retransmision/ws/viewer/${token}`
             wsRef.current = new WebSocket(wsUrl)
@@ -64,8 +69,10 @@ export default function RetransmisionPublicaPage() {
             }
         }
 
+        // Inicia la conexión cuando el componente se monta.
         checkStatus()
 
+        // Cierra la conexión cuando el componente se desmonta.
         return () => {
             if (wsRef.current) {
                 wsRef.current.close()
@@ -74,6 +81,7 @@ export default function RetransmisionPublicaPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [token])
 
+    // Función para compartir el enlace de la retransmisión.
     const shareLink = async () => {
         const link = window.location.href
         if (navigator.share) {
@@ -92,6 +100,7 @@ export default function RetransmisionPublicaPage() {
         }
     }
 
+    // Renderiza la página de retransmisión pública.
     return (
         <div className="min-h-screen flex flex-col bg-white">
             {/* Header Público */}
@@ -160,7 +169,7 @@ export default function RetransmisionPublicaPage() {
 
                 {status === 'connected' && boardData && (
                     <div className="flex-1 flex flex-col md:flex-row w-full mt-8 pb-16 md:pb-0 max-w-[1800px] mx-auto px-0 md:px-12 lg:px-24 xl:px-32">
-                        
+
                         {/* LEFT COLUMN: Datos, Tablero, PGN */}
                         <div className="w-full md:w-1/3 lg:w-1/4 p-6 md:p-10 lg:p-12 bg-white border-r border-cr-border/40 overflow-y-auto">
                             <div className="max-w-md mx-auto w-full flex flex-col items-center md:items-start text-center md:text-left h-full">

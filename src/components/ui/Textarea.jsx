@@ -1,6 +1,4 @@
-/**
- * Componente base para áreas de texto (textarea).
- */
+// Componente base para áreas de texto
 export default function Textarea({
     id,
     name,

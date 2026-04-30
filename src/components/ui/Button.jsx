@@ -1,3 +1,4 @@
+// Botón genérico
 export default function Button({
     children,
     type = 'button',

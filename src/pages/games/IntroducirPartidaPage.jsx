@@ -27,7 +27,7 @@ export default function IntroducirPartidaPage() {
     const { authFetch } = useAuth()
     const navigate = useNavigate()
     const boardRef = useRef(null)
-    
+
     // Control de pestañas para la versión móvil (Tablero / Formulario)
     const [activeTab, setActiveTab] = useState('board')
 
@@ -54,14 +54,15 @@ export default function IntroducirPartidaPage() {
     const [isSaving, setIsSaving] = useState(false)
 
     // --- ESTADO DEL MODAL ---
-    const [modal, setModal] = useState({ 
-        isOpen: false, 
-        title: '', 
-        message: '', 
-        onConfirm: null, 
+    const [modal, setModal] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: null,
         type: 'success' // 'success' | 'error'
     })
 
+    // Cierre de la Modal
     const hideModal = () => setModal(prev => ({ ...prev, isOpen: false }))
 
     // Escuchamos los cambios que vienen del componente ChessBoard
@@ -84,7 +85,7 @@ export default function IntroducirPartidaPage() {
     const handleInputChange = (e) => {
         const { name, value } = e.target
         setFormData(prev => ({ ...prev, [name]: value }))
-        
+
         // Si había un error en este campo, lo quitamos al empezar a escribir
         if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: null }))
@@ -115,6 +116,7 @@ export default function IntroducirPartidaPage() {
             return
         }
 
+        // Guardamos los datos en la API
         setIsSaving(true)
 
         try {
@@ -144,6 +146,7 @@ export default function IntroducirPartidaPage() {
                 throw new Error(errorData.detail || 'Algo ha fallado al intentar guardar')
             }
 
+            // Mostrar modal de éxito
             setModal({
                 isOpen: true,
                 title: '¡Éxito!',
@@ -166,7 +169,7 @@ export default function IntroducirPartidaPage() {
         }
     }
 
-
+    // Renderizado de la página de introducción de partidas
     return (
         <div className="min-h-screen flex flex-col bg-white">
             <Header />
@@ -400,8 +403,8 @@ export default function IntroducirPartidaPage() {
                     <p className="text-cr-text font-medium text-lg leading-relaxed mb-10">
                         {modal.message}
                     </p>
-                    <Button 
-                        variant="primary" 
+                    <Button
+                        variant="primary"
                         className={`w-full h-14 text-sm font-black uppercase tracking-widest shadow-lg ${modal.type === 'success' ? 'shadow-emerald-500/20' : 'shadow-rose-500/20'}`}
                         onClick={modal.onConfirm}
                     >

@@ -6,13 +6,7 @@ import InputPassword from '@/components/ui/InputPassword'
 import Button from '@/components/ui/Button'
 import { useAuth } from '@/hooks/useAuth'
 
-/**
- * Página de inicio de sesión de la aplicación.
- * Gestiona el formulario de autenticación, la validación de campos
- * y la comunicación con el contexto de autenticación.
- * 
- * @returns {JSX.Element} Página de login para usuarios registrados.
- */
+// Página de inicio de sesión de la aplicación.
 export default function LoginPage() {
     const { login } = useAuth()
     const navigate = useNavigate()
@@ -26,23 +20,14 @@ export default function LoginPage() {
     // Estado para gestionar el indicador de carga del botón
     const [loading, setLoading] = useState(false)
 
-    /**
-     * Actualiza el estado del formulario con el nuevo valor del input
-     * y limpia los errores visuales mostrados.
-     * 
-     * @param {React.ChangeEvent<HTMLInputElement>} e - Evento de cambio del input.
-     */
+    // Actualiza el estado del formulario con el nuevo valor del input y limpia los errores visuales mostrados.
     function handleChange(e) {
         setForm(f => ({ ...f, [e.target.name]: e.target.value }))
         setError('')
     }
 
-    /**
-     * Maneja el envío del formulario de inicio de sesión.
-     * Realiza validaciones básicas e intenta inciar sesión a través del hook useAuth().
-     * 
-     * @param {React.FormEvent<HTMLFormElement>} e - Evento de envío del formulario.
-     */
+    // Maneja el envío del formulario de inicio de sesión.
+    // Realiza validaciones básicas e intenta inciar sesión a través del hook useAuth().
     async function handleSubmit(e) {
         e.preventDefault()
 
@@ -52,9 +37,9 @@ export default function LoginPage() {
             return
         }
 
+        // Intentamos iniciar sesión con las credenciales
         setLoading(true)
         try {
-            // Intentamos iniciar sesión con las credenciales
             await login(form)
 
             // Si todo va bien, redirige al usuario al dashboard principal
@@ -68,6 +53,7 @@ export default function LoginPage() {
         }
     }
 
+    // Renderizado del formulario de inicio de sesión
     return (
         <AuthLayout>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>

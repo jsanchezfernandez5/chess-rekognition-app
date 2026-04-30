@@ -8,6 +8,7 @@ const DEFAULT_PHRASES = [
     'Reconoce. Guarda. Retransmite.',
 ]
 
+// Texto animado estilo máquina de escribir
 export default function TypewriterText({
     phrases = DEFAULT_PHRASES,
     typingSpeed = 60,      // ms por carácter al escribir

@@ -10,10 +10,6 @@ const API = import.meta.env.VITE_API_URL || 'https://chess-rekognition-api-produ
  * Proveedor de Autenticación Principal.
  * Gestiona el estado global del usuario, su token de acceso y proporciona
  * métodos unificados para realizar login, registro y peticiones autorizadas.
- * 
- * @param {Object} props - Propiedades del componente.
- * @param {React.ReactNode} props.children - Componentes hijos envueltos por este proveedor.
- * @returns {JSX.Element} Contexto de autenticación.
  */
 export function AuthProvider({ children }) {
     // Estado para almacenar la información del usuario autenticado
@@ -39,10 +35,7 @@ export function AuthProvider({ children }) {
     // Estado que indica si la validación inicial de sesión está en progreso
     const [loading, setLoading] = useState(true)
 
-    /**
-     * Método para cerrar sesión de manera definitiva, borrando todos los 
-     * datos del cliente local.
-     */
+    // Método para cerrar sesión de manera definitiva, borrando todos los datos del cliente local.
     const logout = useCallback(() => {
         localStorage.removeItem('cr_token')
         localStorage.removeItem('cr_refresh_token')
@@ -51,11 +44,9 @@ export function AuthProvider({ children }) {
         setUser(null)
     }, [])
 
-    /**
-     * Efecto de inicialización:
-     * Verifica si existe un token guardado e intenta rehidratar la sesión
-     * obteniendo los datos actualizados del usuario desde la API.
-     */
+    // Efecto de inicialización:
+    // Verifica si existe un token guardado e intenta rehidratar la sesión
+    // obteniendo los datos actualizados del usuario desde la API.
     useEffect(() => {
         if (!token) {
             // Si no hay token, terminamos la carga en el siguiente ciclo de eventos
@@ -110,16 +101,10 @@ export function AuthProvider({ children }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [logout]) // Se ejecuta únicamente al montar la aplicación
 
-    /**
-     * Método para iniciar sesión en el sistema.
-     * 
-     * @param {Object} credentials - Credenciales de acceso.
-     * @param {string} credentials.username - Nombre de usuario.
-     * @param {string} credentials.password - Contraseña del usuario.
-     * @throws {Error} Si las credenciales son incorrectas o la API falla.
-     */
+    // Método para iniciar sesión en el sistema.
     const login = useCallback(async ({ username, password }) => {
         try {
+            // Realiza petición a la API para iniciar sesión
             const res = await fetch(`${API}/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -164,19 +149,14 @@ export function AuthProvider({ children }) {
         }
     }, [])
 
-    /**
-     * Método para registrar de un nuevo usuario en la base de datos.
-     * 
-     * @param {Object} body - Datos completos del formulario de registro.
-     * @returns {Promise<Object>} Promesa con la respuesta de la API.
-     * @throws {Error} Si la validación falla el usuario ya existe.
-     */
+    // Método para registrar de un nuevo usuario en la base de datos.
     const register = useCallback(async (body) => {
         try {
             // Adaptamos el campo 'email' procedente del front a 'mail' requerido por el back
             const payload = { ...body, mail: body.email }
             delete payload.email
 
+            // Petición a la API para registrar un nuevo usuario
             const res = await fetch(`${API}/usuarios/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -209,22 +189,10 @@ export function AuthProvider({ children }) {
         }
     }, [])
 
-    /**
-     * Método para cerrar sesión de manera definitiva, borrando todos los 
-     * datos del cliente local.
-     */
 
-
-    /**
-     * Envoltorio (Wrapper) universal de Fetch preparado para enviar
-     * automáticamente el Bearer token almacenado del usuario a endpoints privados.
-     * También maneja la expiración global del token.
-     * 
-     * @param {string} path - Ruta de la API externa a consultar.
-     * @param {Object} [opts={}] - Opciones adicionales de Fetch (método, headers extra, body, etc).
-     * @returns {Promise<Response>} Promesa original de Fetch.
-     * @throws {Error} Si el backend responde con un Unauthorized (401).
-     */
+    // Envoltorio (Wrapper) universal de Fetch preparado para enviar
+    // automáticamente el Bearer token almacenado del usuario a endpoints privados.
+    // También maneja la expiración global del token.
     const authFetch = useCallback(async (path, opts = {}) => {
         const commonHeaders = {
             'Content-Type': 'application/json',

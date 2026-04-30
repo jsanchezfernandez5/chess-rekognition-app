@@ -1,21 +1,4 @@
-/**
- * Componente base para campos de texto genéricos.
- * Se utiliza directamente para textos normales y sirve como base estructural
- * para otros componentes derivados (como correos o contraseñas).
- * 
- * @param {Object} props - Propiedades del componente.
- * @param {string} props.id - Identificador único del input (usado también para el label).
- * @param {string} props.name - Nombre del atributo para el formulario.
- * @param {string} props.label - Texto de la etiqueta visual superior.
- * @param {string} [props.placeholder=''] - Texto guía que aparece cuando el campo está vacío.
- * @param {string} props.value - Valor actual del campo.
- * @param {function} props.onChange - Función ejecutada al cambiar el contenido del campo.
- * @param {boolean} [props.disabled=false] - Define si el campo está bloqueado para su edición.
- * @param {string} [props.error=''] - Mensaje de error que se muestra debajo del campo (si existe).
- * @param {string} [props.autoComplete='off'] - Sugerencia de autocompletado para el navegador.
- * @param {string} [props.className=''] - Clases CSS adicionales para el contenedor principal.
- * @returns {JSX.Element} Un elemento de entrada de texto estilizado.
- */
+// Campo de texto genérico
 export default function InputText({
     id,
     name,

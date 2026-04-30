@@ -1,19 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Chessboard } from 'react-chessboard'
 import { Chess } from 'chess.js'
-import {
-    ChevronLeft,
-    ChevronRight,
-    Play,
-    Pause,
-    Download
-} from 'lucide-react'
+import { ChevronLeft, ChevronRight, Play, Pause, Download } from 'lucide-react'
 import { downloadPgn } from '@/utils/pgnUtils'
 
-/**
- * Visor PGN robusto - Armonizado y compatible con react-chessboard v5.
- * Probando con props planos para evitar el error de 'Piece undefined'.
- */
+// Visor PGN
 export default function ChessViewer({ partida }) {
     const [fen, setFen] = useState('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
     const [history, setHistory] = useState([])
@@ -60,7 +51,7 @@ export default function ChessViewer({ partida }) {
         }
     }, [partida])
 
-    // Función estable para obtener el FEN
+    // Función estable para obtener el FEN. Se usa para sincronizar el tablero con el movimiento actual
     const syncBoard = useCallback((idx, moves) => {
         const temp = new Chess()
         for (let i = 0; i <= idx; i++) {
@@ -72,6 +63,7 @@ export default function ChessViewer({ partida }) {
         return newFen
     }, [])
 
+    // Métodos para controlar la reproducción
     const handleNext = useCallback(() => {
         if (currentMoveIdx < history.length - 1) {
             syncBoard(currentMoveIdx + 1, history)
@@ -80,6 +72,7 @@ export default function ChessViewer({ partida }) {
         }
     }, [currentMoveIdx, history, syncBoard])
 
+    // Método para retroceder en la partida
     const handlePrev = useCallback(() => {
         if (currentMoveIdx >= 0) {
             syncBoard(currentMoveIdx - 1, history)
@@ -100,6 +93,7 @@ export default function ChessViewer({ partida }) {
 
     if (!partida) return null
 
+    // Renderizado del visor
     return (
         <div className="w-full flex flex-col items-center">
 

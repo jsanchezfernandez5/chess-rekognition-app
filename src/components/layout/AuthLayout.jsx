@@ -1,4 +1,6 @@
 import TypewriterText from '@/components/ui/TypewriterText'
+
+// Estructura de la página de autenticación (Login/Register)
 export default function AuthLayout({ children }) {
     return (
         <div className="min-h-screen flex items-stretch bg-white">

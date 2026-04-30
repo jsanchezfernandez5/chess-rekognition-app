@@ -3,10 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { LayoutDashboard, Edit3, Bot, Video, VideoOff, ClipboardList, LogOut, Menu } from 'lucide-react'
 
-/**
- * Configuración de la navegación principal.
- * Define los enlaces que aparecerán en el menú lateral (Sidebar/Drawer).
- */
+// Configuración de la navegación principal
 const NAV = [
     { path: '/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
     { path: '/games/input', icon: <Edit3 size={20} />, label: 'Introducir partidas' },
@@ -15,25 +12,13 @@ const NAV = [
     { path: '/games', icon: <ClipboardList size={20} />, label: 'Listado de partidas' },
 ]
 
-/**
- * Componente de Diseño Principal (Layout).
- * Proporciona el marco estructural de la aplicación una vez autenticado,
- * incluyendo el Header superior, el menú lateral (Sidebar) responsivo 
- * y el contenedor donde se renderizan las páginas hijas.
- * 
- * @param {Object} props - Propiedades del componente.
- * @param {React.ReactNode} props.children - Contenido de la página actual.
- * @returns {JSX.Element} Estructura base con navegación.
- */
+// Componente de Diseño Principal (Layout).
 export default function AppLayout({ children }) {
     const { user, logout } = useAuth()
     const navigate = useNavigate()
     const { pathname } = useLocation()
 
-    /**
-     * Gestiona el cierre de sesión del usuario.
-     * Limpia el estado global y redirige a la pantalla de acceso.
-     */
+    // Gestiona el cierre de sesión del usuario.
     function handleLogout() {
         logout()
         navigate('/login')
@@ -42,13 +27,7 @@ export default function AppLayout({ children }) {
     // Estado para controlar la apertura/cierre del menú lateral en móviles
     const [sidebarOpen, setSidebarOpen] = useState(false)
 
-    /**
-     * Genera las iniciales a partir del nombre del usuario.
-     * Utilizado para el Avatar circular.
-     * 
-     * @param {string} name - Nombre o username del usuario.
-     * @returns {string} Iniciales en mayúsculas (máximo 2 caracteres).
-     */
+    // Genera las iniciales a partir del nombre del usuario
     const getInitials = (name) => {
         if (!name) return '?'
         const parts = name.trim().split(/\s+/)
@@ -56,6 +35,7 @@ export default function AppLayout({ children }) {
         return parts[0][0].toUpperCase()
     }
 
+    // Renderizado del layout
     return (
         <div className="flex min-h-screen bg-[#F0F2F5]">
 

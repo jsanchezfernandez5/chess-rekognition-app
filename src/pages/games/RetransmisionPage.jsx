@@ -6,6 +6,7 @@ import InputText from '@/components/ui/InputText'
 import InputSelect from '@/components/ui/InputSelect'
 import { useAuth } from '@/hooks/useAuth'
 
+// Componente de formulario para iniciar la retransmisión
 export default function RetransmisionPage() {
     const { authFetch } = useAuth()
     const [token, setToken] = useState(null)
@@ -13,7 +14,7 @@ export default function RetransmisionPage() {
     const [isCameraActive, setIsCameraActive] = useState(false)
     const [error, setError] = useState(null)
     const [facingMode, setFacingMode] = useState('environment')
-    
+
     // Control de pestañas para móvil
     const [activeTab, setActiveTab] = useState('config')
 
@@ -37,6 +38,7 @@ export default function RetransmisionPage() {
         resultado: 'En juego...'
     })
 
+    // Control del formulario
     const handleInputChange = (e) => {
         const { name, value } = e.target
         setFormData(prev => ({ ...prev, [name]: value }))
@@ -48,8 +50,8 @@ export default function RetransmisionPage() {
             if (videoRef.current && videoRef.current.srcObject) {
                 videoRef.current.srcObject.getTracks().forEach(t => t.stop())
             }
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: mode } 
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: mode }
             })
             if (videoRef.current) {
                 videoRef.current.srcObject = stream
@@ -62,12 +64,14 @@ export default function RetransmisionPage() {
         }
     }
 
+    // Alternar cámara trasera y frontal
     const toggleCamera = () => {
         const newMode = facingMode === 'environment' ? 'user' : 'environment'
         setFacingMode(newMode)
         startCamera(newMode)
     }
 
+    // Control de cámara y retransmisión
     useEffect(() => {
         startCamera(facingMode)
         const currentVideo = videoRef.current
@@ -80,6 +84,7 @@ export default function RetransmisionPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
+    // Iniciar retransmisión
     const startBroadcast = async () => {
         // Validación de campos obligatorios
         if (!formData.evento || !formData.blancas || !formData.negras) {
@@ -87,7 +92,8 @@ export default function RetransmisionPage() {
             return
         }
 
-        setError(null) // Limpiar errores previos
+        // Limpiar errores previos
+        setError(null)
 
         try {
             // Inicializar retransmisión en el backend
@@ -101,17 +107,20 @@ export default function RetransmisionPage() {
                 resultado: formData.resultado || undefined
             }
 
+            // Solicitar token al backend
             const res = await authFetch('/retransmision/host', {
                 method: 'POST',
                 body: JSON.stringify(payload)
             })
-            
+
             if (!res.ok) throw new Error('Error al registrar la retransmisión')
-            
+
             const data = await res.json()
             const newToken = data.token
-            
+
+            // Almacenar el token
             setToken(newToken)
+            // Marcar como retransmitiendo
             setIsBroadcasting(true)
 
             // Conectar WebSocket
@@ -124,11 +133,13 @@ export default function RetransmisionPage() {
                 setActiveTab('vision') // Pasar a la pestaña de visión automáticamente en móviles
             }
 
+            // Manejar errores de WebSocket
             wsRef.current.onerror = () => {
                 setError('Error de conexión WebSocket')
                 stopBroadcast()
             }
-            
+
+            // Manejar cierre de WebSocket
             wsRef.current.onclose = () => {
                 console.log("WebSocket Host Cerrado")
                 setIsBroadcasting(false)
@@ -139,6 +150,7 @@ export default function RetransmisionPage() {
         }
     }
 
+    // Detener retransmisión
     const stopBroadcast = () => {
         setIsBroadcasting(false)
         if (wsRef.current) {
@@ -151,6 +163,7 @@ export default function RetransmisionPage() {
         }
     }
 
+    // Detener cámara y retransmisión
     const stopCameraAndBroadcast = () => {
         stopBroadcast()
         if (videoRef.current && videoRef.current.srcObject) {
@@ -160,6 +173,7 @@ export default function RetransmisionPage() {
         }
     }
 
+    // Control de cámara
     const toggleCameraPower = () => {
         if (isCameraActive) {
             stopCameraAndBroadcast()
@@ -168,6 +182,7 @@ export default function RetransmisionPage() {
         }
     }
 
+    // Procesar frame
     const processFrame = async () => {
         if (!isBroadcasting || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
 
@@ -226,10 +241,11 @@ export default function RetransmisionPage() {
         }, 'image/jpeg', 0.8)
     }
 
+    // Compartir enlace de retransmisión
     const shareLink = async () => {
         if (!token) return
         const link = `${window.location.origin}/retransmision/${token}`
-        
+
         if (navigator.share) {
             try {
                 await navigator.share({
@@ -246,12 +262,15 @@ export default function RetransmisionPage() {
         }
     }
 
+    // Control de pestañas para móvil
     const getTabClass = (tabName) => activeTab !== tabName ? 'hidden md:flex' : 'flex'
 
+    // Renderizado
     return (
         <div className="min-h-screen flex flex-col bg-white overflow-hidden">
             <Header />
 
+            {/* Título de la página */}
             <div className="w-full max-w-[1800px] mx-auto pt-8 px-6 md:px-12 lg:px-24 xl:px-32 bg-white">
                 <h1 className="font-display text-3xl font-black text-cr-text tracking-tight">
                     Partida retransmitida
@@ -259,7 +278,7 @@ export default function RetransmisionPage() {
             </div>
 
             <div className="flex-1 flex flex-col md:flex-row relative mt-4 pb-16 md:pb-0 w-full max-w-[1800px] mx-auto px-0 md:px-12 lg:px-24 xl:px-32">
-                
+
                 {/* 1. CONFIGURACIÓN */}
                 <div className={`w-full md:w-1/3 flex-col p-6 md:p-10 lg:p-12 bg-white border-r border-cr-border/40 overflow-y-auto ${getTabClass('config')}`}>
                     <div className="max-w-md mx-auto w-full">
@@ -275,7 +294,7 @@ export default function RetransmisionPage() {
                                 <InputText id="ronda" name="ronda" label="Ronda" value={formData.ronda} onChange={handleInputChange} disabled={isBroadcasting} />
                                 <InputText id="tablero" name="tablero" label="Tablero" value={formData.tablero} onChange={handleInputChange} disabled={isBroadcasting} />
                             </div>
-                            
+
                             {!isBroadcasting ? (
                                 <Button variant="primary" className="w-full mt-6 h-14 font-black uppercase tracking-widest shadow-lg shadow-cr-primary/20" onClick={startBroadcast}>
                                     Activar Visión IA
@@ -296,7 +315,7 @@ export default function RetransmisionPage() {
                         <h2 className="font-display text-2xl font-black text-cr-text tracking-tight mb-8">
                             Visión IA
                         </h2>
-                        
+
                         {error && (
                             <div className="w-full bg-rose-50 text-rose-500 p-3 rounded-xl flex items-center mb-4 text-xs font-bold">
                                 <AlertCircle className="mr-2" size={16} />
@@ -307,7 +326,7 @@ export default function RetransmisionPage() {
                         <div className="relative w-full aspect-video bg-gray-900 rounded-2xl overflow-hidden shadow-inner mb-4 border-[3px] border-cr-border">
                             <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
                             <canvas ref={canvasRef} className="hidden" />
-                            
+
                             {isBroadcasting && (
                                 <div className="absolute top-4 right-4 flex items-center bg-emerald-500 text-white px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-md">
                                     <span className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></span>
@@ -321,9 +340,9 @@ export default function RetransmisionPage() {
                                 <SwitchCamera size={16} className="mr-2" />
                                 Cambiar
                             </Button>
-                            <Button 
-                                variant="outline" 
-                                className={`flex-1 text-xs font-bold uppercase ${isCameraActive ? 'text-rose-500 hover:bg-rose-50 border-rose-500/30' : 'text-emerald-500 hover:bg-emerald-50 border-emerald-500/30'}`} 
+                            <Button
+                                variant="outline"
+                                className={`flex-1 text-xs font-bold uppercase ${isCameraActive ? 'text-rose-500 hover:bg-rose-50 border-rose-500/30' : 'text-emerald-500 hover:bg-emerald-50 border-emerald-500/30'}`}
                                 onClick={toggleCameraPower}
                             >
                                 {isCameraActive ? (
@@ -335,11 +354,11 @@ export default function RetransmisionPage() {
                         </div>
 
                         <div className="mb-4">
-                            <InputSelect 
-                                id="resultado" 
-                                name="resultado" 
-                                label="Resultado" 
-                                value={formData.resultado} 
+                            <InputSelect
+                                id="resultado"
+                                name="resultado"
+                                label="Resultado"
+                                value={formData.resultado}
                                 onChange={handleInputChange}
                                 options={[
                                     { value: 'En juego...', label: 'En juego...' },
@@ -372,7 +391,7 @@ export default function RetransmisionPage() {
                         <h3 className="font-bold text-cr-text uppercase tracking-widest text-[11px] mb-3">
                             Tablero rectificado (vista cenital)
                         </h3>
-                        
+
                         <div className="w-full max-w-[260px] mx-auto aspect-square bg-white rounded-2xl overflow-hidden border border-cr-border shadow-sm flex items-center justify-center p-2 mb-6">
                             {debugImage ? (
                                 <img src={debugImage} alt="Visión Debug" className="w-full h-full object-contain rounded-xl" />
@@ -387,7 +406,7 @@ export default function RetransmisionPage() {
                         <h3 className="font-bold text-cr-text uppercase tracking-widest text-[11px] mb-3">
                             Registro de actividad
                         </h3>
-                        
+
                         <div className="bg-white border border-cr-border rounded-xl p-4 h-[160px] overflow-y-auto text-xs font-mono w-full">
                             {isBroadcasting ? (
                                 <div className="space-y-4">
