@@ -54,10 +54,3 @@ app/
 ├── eslint.config.js        # Reglas de linting centralizadas.
 └── package.json            # Dependencias.
 ```
-
-## Buenas Prácticas y UI/UX implementada
-
-1. **Light Corporate Theme:** Esquema centralizado en el logotipo usando color azul corporativo en conjunción con blancos y grises de bajo contraste.
-2. **Mobile-First Responsivo:** Las pantallas grandes integran secciones visuales adicionales que se ocultan en formato móvil para minimizar cargas innecesarias y dar formato a los formularios.
-3. **Optimización de Fuentes:** Se ha utilizado un "stack" de fuentes del sistema (_System Fonts_: Segoe UI, Roboto, Helvetica, Georgia...) para minimizar el CLS y suprimir los tiempos de latencia DNS.
-4. **Separación ORM Front:** Se ha desacoplado el código que maneja estados e interacciones de seguridad a través de peticiones JWT de forma que ofrezca transiciones centralizadas (AuthFetch).
