@@ -1,234 +1,182 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { Loader2, AlertCircle, Activity, Share2, Download } from 'lucide-react'
-import Button from '@/components/ui/Button'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Chessboard } from 'react-chessboard'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Radio, ChevronLeft, LayoutDashboard, ExternalLink } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 
-// Componente que muestra una retransmisión pública de una partida de ajedrez.
-// Requiere un token para acceder a la retransmisión.
 export default function RetransmisionPublicaPage() {
     const { token } = useParams()
-    const [status, setStatus] = useState('connecting') // connecting, connected, error, waiting
-    const [boardData, setBoardData] = useState(null)
-    const [errorMsg, setErrorMsg] = useState('')
+    const navigate = useNavigate()
+    
+    // --- Estado de la partida ---
+    const [currentFen, setCurrentFen] = useState('start')
+    const [pgn, setPgn] = useState('')
+    const [lastMove, setLastMove] = useState(null)
+    const [moveType, setMoveType] = useState(null)
+    const [isConnected, setIsConnected] = useState(false)
+    const [isFinished, setIsFinished] = useState(false)
+    
+    // --- WebSocket ---
     const wsRef = useRef(null)
 
-    // Hook que se ejecuta cuando el componente se monta o cuando cambia el token.
-    // Verifica si la retransmisión existe y se conecta al WebSocket.
     useEffect(() => {
-        // Primero verificamos si la retransmisión existe vía HTTP
-        const checkStatus = async () => {
-            try {
-                const res = await fetch(`${import.meta.env.VITE_API_URL}/retransmision/status/${token}`)
-                const data = await res.json()
-                if (data.success && data.data.active) {
-                    connectWebSocket()
-                } else {
-                    setStatus('error')
-                    setErrorMsg('La retransmisión no existe o ya ha finalizado.')
-                }
-            } catch {
-                setStatus('error')
-                setErrorMsg('Error al conectar con el servidor.')
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+        const wsUrl = `${protocol}//${window.location.host}/retransmision/ws/viewer/${token}`
+        const ws = new WebSocket(wsUrl)
+
+        ws.onopen = () => {
+            setIsConnected(true)
+            console.log("Conectado a la retransmisión")
+        }
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data)
+            
+            if (data.fen) setCurrentFen(data.fen)
+            if (data.pgn) setPgn(data.pgn)
+            if (data.last_move) setLastMove(data.last_move)
+            
+            // Mostrar badge si es una jugada especial
+            if (data.move_type && !['normal', 'capture'].includes(data.move_type)) {
+                setMoveType(data.move_type)
+                setTimeout(() => setMoveType(null), 3000)
             }
         }
 
-        // Conecta al WebSocket para recibir las actualizaciones de la retransmisión.
-        const connectWebSocket = () => {
-            const wsUrl = `${import.meta.env.VITE_API_URL.replace('http', 'ws')}/retransmision/ws/viewer/${token}`
-            wsRef.current = new WebSocket(wsUrl)
-
-            wsRef.current.onopen = () => {
-                setStatus('waiting') // Connected, waiting for data
-            }
-
-            wsRef.current.onmessage = (event) => {
-                try {
-                    const payload = JSON.parse(event.data)
-                    if (payload.type === 'BOARD_STATE') {
-                        setStatus('connected')
-                        setBoardData(payload.data)
-                    } else {
-                        setStatus('connected')
-                        setBoardData(payload)
-                    }
-                } catch (e) {
-                    console.error("Error parseando mensaje WS:", e)
-                }
-            }
-
-            wsRef.current.onerror = () => {
-                setStatus('error')
-                setErrorMsg('Se perdió la conexión con la retransmisión.')
-            }
-
-            wsRef.current.onclose = () => {
-                if (status !== 'error') {
-                    setStatus('error')
-                    setErrorMsg('La retransmisión ha finalizado.')
-                }
-            }
+        ws.onclose = () => {
+            setIsConnected(false)
+            setIsFinished(true)
         }
 
-        // Inicia la conexión cuando el componente se monta.
-        checkStatus()
-
-        // Cierra la conexión cuando el componente se desmonta.
-        return () => {
-            if (wsRef.current) {
-                wsRef.current.close()
-            }
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        wsRef.current = ws
+        return () => ws.close()
     }, [token])
 
-    // Función para compartir el enlace de la retransmisión.
-    const shareLink = async () => {
-        const link = window.location.href
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: 'Retransmisión de Ajedrez',
-                    text: 'Sigue la partida en directo',
-                    url: link
-                })
-            } catch (err) {
-                console.log("Error compartiendo", err)
-            }
-        } else {
-            navigator.clipboard.writeText(link)
-            alert('Enlace copiado al portapapeles.')
-        }
+    // Helper para formatear PGN
+    const parsePgn = (pgnString) => {
+        if (!pgnString) return []
+        // Extraer solo los movimientos (quitar cabeceras [])
+        const rawMoves = pgnString.replace(/\[.*?\]/g, '').trim()
+        // Dividir por números de jugada 1. e4 e5 -> ["e4 e5", "Nf3 Nc6"...]
+        const moves = rawMoves.split(/\d+\.\s+/).filter(Boolean)
+        return moves.map(m => m.trim())
     }
 
-    // Renderiza la página de retransmisión pública.
+    const getMoveLabel = (type) => {
+        const labels = {
+            'castling_short': 'O-O · Enroque corto',
+            'castling_long': 'O-O-O · Enroque largo',
+            'en_passant': '⬡ Captura al paso',
+            'promotion': '♛ Coronación'
+        }
+        return labels[type] || type
+    }
+
     return (
-        <div className="min-h-screen flex flex-col bg-white">
-            {/* Header Público */}
-            <header className="h-20 bg-white border-b border-cr-border flex items-center justify-between px-6 md:px-10 sticky top-0 z-40">
-                <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-cr-primary rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md">
-                        C
+        <div className="min-h-screen bg-cr-bg py-12 px-4">
+            <div className="max-w-2xl mx-auto">
+                
+                {/* Cabecera */}
+                <header className="mb-8 flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-display text-cr-primary font-bold">♟ Partida en directo</h1>
+                        <p className="text-cr-muted text-sm mt-1">Siguiendo la acción en tiempo real</p>
                     </div>
-                    <span className="font-display font-black text-xl text-cr-text tracking-tight hidden md:inline-block">
-                        Chess Rekognition
-                    </span>
-                </div>
-                <div className="flex items-center gap-4">
-                    {status === 'connected' && (
-                        <div className="flex items-center text-xs font-bold uppercase tracking-widest text-emerald-500 bg-emerald-50 px-3 py-1.5 rounded-full">
-                            <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
-                            En Vivo
-                        </div>
-                    )}
-                    <Link to="/" className="text-[10px] font-black uppercase tracking-widest text-cr-primary hover:text-cr-primary-hover transition-colors">
-                        Ir a la App
-                    </Link>
-                </div>
-            </header>
-
-            <main className="flex-1 flex flex-col items-center justify-center w-full">
-                {status === 'connecting' && (
-                    <div className="flex flex-col items-center justify-center py-20">
-                        <Loader2 size={48} className="animate-spin text-cr-primary mb-6" />
-                        <h2 className="font-display text-2xl font-black text-cr-text tracking-tight">
-                            Conectando a la retransmisión...
-                        </h2>
+                    
+                    <div className={`flex items-center gap-2 px-4 py-2 rounded-full border bg-cr-surface shadow-sm ${
+                        isConnected ? 'border-green-200 text-green-700' : 'border-gray-200 text-gray-500'
+                    }`}>
+                        <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                        <span className="text-xs font-bold uppercase tracking-widest">
+                            {isConnected ? 'En directo' : 'Desconectado'}
+                        </span>
                     </div>
-                )}
+                </header>
 
-                {status === 'waiting' && (
-                    <div className="flex flex-col items-center justify-center py-20 text-center">
-                        <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-6">
-                            <Activity size={32} />
-                        </div>
-                        <h2 className="font-display text-2xl font-black text-cr-text tracking-tight mb-2">
-                            Esperando la partida
-                        </h2>
-                        <p className="text-cr-muted font-medium">
-                            El anfitrión está conectado pero aún no ha transmitido el tablero.
-                        </p>
-                    </div>
-                )}
-
-                {status === 'error' && (
-                    <div className="flex flex-col items-center justify-center py-20 text-center">
-                        <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-6">
-                            <AlertCircle size={32} />
-                        </div>
-                        <h2 className="font-display text-2xl font-black text-cr-text tracking-tight mb-2">
-                            Retransmisión no disponible
-                        </h2>
-                        <p className="text-cr-muted font-medium mb-8">
-                            {errorMsg}
-                        </p>
-                        <Link to="/" className="h-12 px-6 bg-cr-primary text-white text-sm font-black uppercase tracking-widest flex items-center justify-center rounded-xl shadow-md hover:bg-cr-primary-hover transition-colors">
-                            Volver al Inicio
-                        </Link>
-                    </div>
-                )}
-
-                {status === 'connected' && boardData && (
-                    <div className="flex-1 flex flex-col md:flex-row w-full mt-8 pb-16 md:pb-0 max-w-[1800px] mx-auto px-0 md:px-12 lg:px-24 xl:px-32">
-
-                        {/* LEFT COLUMN: Datos, Tablero, PGN */}
-                        <div className="w-full md:w-1/3 lg:w-1/4 p-6 md:p-10 lg:p-12 bg-white border-r border-cr-border/40 overflow-y-auto">
-                            <div className="max-w-md mx-auto w-full flex flex-col items-center md:items-start text-center md:text-left h-full">
-                                <div className="mb-6 w-full text-center">
-                                    <h3 className="text-[11px] uppercase font-black tracking-widest text-cr-muted mb-2">Datos de la Retransmisión</h3>
-                                    <div className="text-cr-primary font-medium text-sm">
-                                        <p>Blancas: {boardData.metadata?.blancas || 'Desconocido'}</p>
-                                        <p>Negras: {boardData.metadata?.negras || 'Desconocido'}</p>
-                                        <p>Resultado: {boardData.metadata?.resultado || 'En juego...'}</p>
-                                    </div>
+                <main className="space-y-6">
+                    
+                    {/* Banner de Finalización */}
+                    <AnimatePresence>
+                        {isFinished && (
+                            <motion.div 
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                className="bg-cr-primary text-white p-6 rounded-2xl shadow-lg border border-white/10 flex flex-col items-center text-center gap-4"
+                            >
+                                <LayoutDashboard className="w-12 h-12 opacity-50" />
+                                <div>
+                                    <h3 className="text-xl font-bold">La retransmisión ha finalizado</h3>
+                                    <p className="text-blue-100/70 text-sm">El anfitrión ha cerrado la sesión de juego.</p>
                                 </div>
-
-                                <div className="w-full max-w-[260px] mx-auto aspect-square bg-cr-bg rounded-2xl border border-cr-border p-2 mb-6 shadow-inner">
-                                    {boardData.rectified_2d ? (
-                                        <img src={boardData.rectified_2d} alt="Tablero Virtual" className="w-full h-full object-contain" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-cr-muted text-xs">Sin datos 2D</div>
-                                    )}
-                                </div>
-
-                                <div className="w-full mb-6 relative">
-                                    <label className="block text-[10px] uppercase font-black text-cr-muted mb-2 tracking-widest text-left">
-                                        Notación PGN
-                                    </label>
-                                    <textarea
-                                        readOnly
-                                        value={boardData.metadata?.pgn || "Esperando notación..."}
-                                        style={{ fontFamily: '"Figurine", serif' }}
-                                        className="w-full h-[140px] p-4 bg-cr-bg border-2 border-transparent focus:border-cr-primary/20 rounded-2xl resize-none text-sm font-medium leading-relaxed text-cr-text transition-all outline-hidden shadow-xs"
-                                    />
-                                    <button className="absolute right-3 top-8 text-cr-text hover:text-cr-primary">
-                                        <Download size={18} />
-                                    </button>
-                                </div>
-
-                                <Button variant="outline" className="w-full font-black uppercase tracking-widest h-14 shrink-0" onClick={shareLink}>
-                                    <Share2 size={18} className="mr-3" />
-                                    Compartir Retransmisión
+                                <Button onClick={() => navigate('/')} variant="secondary" className="mt-2">
+                                    <ChevronLeft size={18} /> Volver al inicio
                                 </Button>
-                            </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Tablero Principal */}
+                    <div className="relative bg-cr-surface p-6 rounded-3xl border border-cr-border shadow-xl">
+                        <div className="aspect-square w-full max-w-[500px] mx-auto">
+                            <Chessboard 
+                                position={currentFen} 
+                                arePiecesDraggable={false}
+                                customSquareStyles={{
+                                    ...(lastMove && {
+                                        [lastMove.from]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' },
+                                        [lastMove.to]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' }
+                                    })
+                                }}
+                            />
                         </div>
 
-                        {/* RIGHT COLUMN: Video de la Cámara */}
-                        <div className="w-full md:w-2/3 lg:w-3/4 p-6 md:p-10 lg:p-12 bg-white flex flex-col overflow-hidden">
-                            <div className="w-full aspect-video bg-gray-900 rounded-3xl overflow-hidden shadow-xl border-4 border-gray-800 relative flex items-center justify-center">
-                                {boardData.rectified_real || boardData.debug_image ? (
-                                    <img src={boardData.rectified_real || boardData.debug_image} alt="Cámara" className="w-full h-full object-contain" />
-                                ) : (
-                                    <span className="text-white/50 font-medium">Esperando imagen de la cámara...</span>
-                                )}
-                                <div className="absolute bottom-6 left-6 bg-black/60 backdrop-blur-sm text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg border border-white/10">
-                                    Ocupación: {boardData.occupied_count} / {boardData.num_squares}
-                                </div>
-                            </div>
-                        </div>
-
+                        {/* Badge de Jugada Especial */}
+                        <AnimatePresence>
+                            {moveType && (
+                                <motion.div 
+                                    initial={{ opacity: 0, scale: 0.5, y: 20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.5 }}
+                                    className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-cr-primary text-white px-5 py-2.5 rounded-full shadow-2xl border-2 border-white font-bold text-xs whitespace-nowrap"
+                                >
+                                    {getMoveLabel(moveType)}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
-                )}
-            </main>
+
+                    {/* Historial de Jugadas */}
+                    <div className="bg-cr-surface rounded-2xl border border-cr-border shadow-md overflow-hidden">
+                        <div className="p-4 border-b border-cr-border bg-cr-surface2 flex items-center gap-2">
+                            <Radio size={16} className="text-cr-primary animate-pulse" />
+                            <span className="font-bold text-xs uppercase tracking-widest text-cr-text">Retransmisión PGN</span>
+                        </div>
+                        <div className="p-8 font-figurine text-2xl leading-relaxed text-cr-text min-h-[120px]">
+                            {pgn ? (
+                                <div className="flex flex-wrap gap-x-8 gap-y-3">
+                                    {parsePgn(pgn).map((movePair, i) => (
+                                        <div key={i} className={`flex items-center gap-2 ${i === parsePgn(pgn).length - 1 ? 'text-cr-primary' : ''}`}>
+                                            <span className="text-cr-muted text-sm italic">{i + 1}.</span>
+                                            <span>{movePair}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center py-4 text-cr-muted">
+                                    <div className="w-12 h-1 bg-cr-border rounded-full mb-3" />
+                                    <p className="text-sm font-sans italic">Esperando el primer movimiento...</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Footer / Info */}
+                    <footer className="pt-8 text-center">
+                        <p className="text-[10px] text-cr-muted uppercase tracking-[0.2em]">Powered by Chess Rekognition Engine v1.0</p>
+                    </footer>
+                </main>
+            </div>
         </div>
     )
 }

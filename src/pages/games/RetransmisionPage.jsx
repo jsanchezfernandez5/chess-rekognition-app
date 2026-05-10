@@ -1,451 +1,509 @@
-import { useState, useRef, useEffect } from 'react'
-import { SwitchCamera, Share2, Activity, Play, StopCircle, RefreshCw, AlertCircle } from 'lucide-react'
-import Header from '@/components/layout/Header'
-import Button from '@/components/ui/Button'
-import InputText from '@/components/ui/InputText'
-import InputSelect from '@/components/ui/InputSelect'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Chess } from 'chess.js'
+import { Chessboard } from 'react-chessboard'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+    Camera, 
+    Settings, 
+    Play, 
+    Square, 
+    Share2, 
+    CheckCircle2, 
+    AlertCircle, 
+    History,
+    Save,
+    Copy,
+    Check
+} from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { Button } from '@/components/ui/Button'
+import { Modal } from '@/components/ui/Modal'
 
-// Componente de formulario para iniciar la retransmisión
 export default function RetransmisionPage() {
     const { authFetch } = useAuth()
-    const [token, setToken] = useState(null)
-    const [isBroadcasting, setIsBroadcasting] = useState(false)
-    const [isCameraActive, setIsCameraActive] = useState(false)
-    const [error, setError] = useState(null)
-    const [facingMode, setFacingMode] = useState('environment')
-
-    // Control de pestañas para móvil
-    const [activeTab, setActiveTab] = useState('config')
-
-    // UI state for the video
+    const navigate = useNavigate()
+    
+    // --- Refs de lógica (no provocan re-render) ---
+    const game = useRef(new Chess())
+    const wsRef = useRef(null)
+    const intervalRef = useRef(null)
+    const detectingRef = useRef(false)
+    const missCountRef = useRef(0)
+    const retransmisionIdRef = useRef(null)
     const videoRef = useRef(null)
     const canvasRef = useRef(null)
-    const wsRef = useRef(null)
-    const loopRef = useRef(null)
+    const MISS_THRESHOLD = 3
 
-    const [stats, setStats] = useState({ occupied: 0, total: 64, ping: 0 })
-    const [debugImage, setDebugImage] = useState(null)
+    // --- Estado UI ---
+    const [isCamActive, setIsCamActive] = useState(false)
+    const [isCalibrated, setIsCalibrated] = useState(false)
+    const [isAutoMode, setIsAutoMode] = useState(false)
+    const [rectifiedImg, setRectifiedImg] = useState(null)
+    const [status, setStatus] = useState("Inicia la cámara para comenzar")
+    const [currentFen, setCurrentFen] = useState(game.current.fen())
+    const [lastMove, setLastMove] = useState(null)
+    const [pgn, setPgn] = useState("")
+    const [retransmisionId, setRetransmisionId] = useState(null)
+    const [token, setToken] = useState(null)
+    const [showShareModal, setShowShareModal] = useState(false)
+    const [copied, setCopied] = useState(false)
+    const [logs, setLogs] = useState([])
+    const [specialMove, setSpecialMove] = useState(null)
 
-    // Formulario de configuración (Host)
-    const [formData, setFormData] = useState({
-        evento: '',
-        blancas: '',
-        negras: '',
-        lugar: '',
-        ronda: '',
-        tablero: '',
-        resultado: 'En juego...'
-    })
+    // --- Inicialización de la retransmisión ---
+    useEffect(() => {
+        let active = true
+        async function init() {
+            try {
+                const res = await authFetch('/retransmision', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        blancas: "Jugador Local",
+                        negras: "Oponente",
+                        evento: "Partida en vivo",
+                        tablero: "Mesa 1"
+                    })
+                })
+                const data = await res.json()
+                if (active) {
+                    setRetransmisionId(data.id)
+                    retransmisionIdRef.current = data.id
+                    setToken(data.token)
+                    initWebSocket(data.token)
+                }
+            } catch (err) {
+                addLog("Error al inicializar retransmisión: " + err.message)
+            }
+        }
+        init()
+        return () => { 
+            active = false
+            cleanup()
+        }
+    }, [])
 
-    // Control del formulario
-    const handleInputChange = (e) => {
-        const { name, value } = e.target
-        setFormData(prev => ({ ...prev, [name]: value }))
+    const cleanup = async () => {
+        clearInterval(intervalRef.current)
+        if (wsRef.current) wsRef.current.close()
+        if (videoRef.current?.srcObject) {
+            videoRef.current.srcObject.getTracks().forEach(t => t.stop())
+        }
+        // Finalizar en el backend si tenemos el ID
+        if (retransmisionIdRef.current) {
+            authFetch(`/retransmision/${retransmisionIdRef.current}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ is_activa: false })
+            }).catch(() => {})
+        }
     }
 
-    // Iniciar cámara
-    const startCamera = async (mode = facingMode) => {
+    const initWebSocket = (token) => {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+        const wsUrl = `${protocol}//${window.location.host}/retransmision/ws/host/${token}`
+        const ws = new WebSocket(wsUrl)
+        
+        ws.onopen = () => addLog("Canal de retransmisión abierto")
+        ws.onerror = () => addLog("Error en WebSocket")
+        wsRef.current = ws
+    }
+
+    // --- Cámara ---
+    const startCamera = async () => {
         try {
-            if (videoRef.current && videoRef.current.srcObject) {
-                videoRef.current.srcObject.getTracks().forEach(t => t.stop())
-            }
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: mode }
+                video: { facingMode: 'environment', width: 1280, height: 720 }
             })
             if (videoRef.current) {
                 videoRef.current.srcObject = stream
-                setIsCameraActive(true)
+                setIsCamActive(true)
+                setStatus("Tablero no calibrado")
+                addLog("Cámara iniciada")
+            }
+        } catch (err) {
+            addLog("Error de cámara: " + err.message)
+            setStatus("Error de cámara")
+        }
+    }
+
+    // --- Calibración ---
+    const calibrar = async () => {
+        if (!videoRef.current) return
+        setStatus("Calibrando...")
+        
+        const blob = await captureFrame()
+        const fd = new FormData()
+        fd.append('file', blob)
+
+        try {
+            const res = await authFetch('/vision/recognize-board', {
+                method: 'POST',
+                body: fd,
+                headers: {} // Evitar Content-Type JSON
+            })
+            const data = await res.json()
+
+            if (data.success) {
+                setRectifiedImg(data.rectified_real)
+                setIsCalibrated(true)
+                setStatus("Tablero calibrado ✓")
+                addLog("Calibración exitosa")
+            } else {
+                setIsCalibrated(false)
+                setStatus("Calibración fallida — ajusta el encuadre")
+                addLog("Error calibración: " + data.error)
+            }
+        } catch (err) {
+            addLog("Error de red en calibración")
+        }
+    }
+
+    // --- Bucle de detección ---
+    useEffect(() => {
+        if (isAutoMode) {
+            setStatus("Escuchando...")
+            intervalRef.current = setInterval(detectMove, 500)
+        } else {
+            clearInterval(intervalRef.current)
+            if (isCalibrated) setStatus("Tablero calibrado ✓")
+        }
+        return () => clearInterval(intervalRef.current)
+    }, [isAutoMode, isCalibrated])
+
+    const detectMove = async () => {
+        if (detectingRef.current) return
+        detectingRef.current = true
+
+        try {
+            const blob = await captureFrame()
+            const fd = new FormData()
+            fd.append('file', blob)
+            fd.append('prev_fen', game.current.fen())
+
+            const res = await authFetch('/vision/detect-move', {
+                method: 'POST',
+                body: fd,
+                headers: {}
+            })
+            const data = await res.json()
+
+            if (!data.success) {
+                missCountRef.current++
+                if (missCountRef.current >= MISS_THRESHOLD) {
+                    setStatus("Mano detectada (esperando...)")
+                }
+                return
+            }
+
+            // Dibujar overlay visual
+            drawOverlay(data.board_state)
+
+            if (data.found) {
+                missCountRef.current = 0
+                const move = data.move
+                
+                // Aplicar a la lógica local
+                game.current.move(move.uci)
+                setCurrentFen(data.new_fen)
+                setPgn(game.current.pgn())
+                setLastMove({ from: move.from, to: move.to })
+                setStatus(`Movimiento: ${move.san}`)
+                addLog(`${move.san} · ${move.type} · ${(data.confidence_avg * 100).toFixed(0)}%`)
+
+                // Badge especial
+                if (["castling_short", "castling_long", "en_passant", "promotion"].includes(move.type)) {
+                    setSpecialMove(move.type)
+                    setTimeout(() => setSpecialMove(null), 3000)
+                }
+
+                // Emitir por WS
+                if (wsRef.current?.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(JSON.stringify({
+                        fen: data.new_fen,
+                        pgn: game.current.pgn(),
+                        last_move: { from: move.from, to: move.to },
+                        move_type: move.type
+                    }))
+                }
+            } else {
+                missCountRef.current++
+                if (missCountRef.current >= MISS_THRESHOLD) {
+                    setStatus("Posición incierta — confirma manualmente")
+                }
             }
         } catch (err) {
             console.error(err)
-            setError('No se pudo acceder a la cámara. Revisa los permisos.')
-            setIsCameraActive(false)
+        } finally {
+            detectingRef.current = false
         }
     }
 
-    // Alternar cámara trasera y frontal
-    const toggleCamera = () => {
-        const newMode = facingMode === 'environment' ? 'user' : 'environment'
-        setFacingMode(newMode)
-        startCamera(newMode)
+    const captureFrame = () => {
+        return new Promise(resolve => {
+            const canvas = document.createElement('canvas')
+            canvas.width = videoRef.current.videoWidth
+            canvas.height = videoRef.current.videoHeight
+            canvas.getContext('2d').drawImage(videoRef.current, 0, 0)
+            canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.85)
+        })
     }
 
-    // Control de cámara y retransmisión
-    useEffect(() => {
-        startCamera(facingMode)
-        const currentVideo = videoRef.current
-        return () => {
-            stopBroadcast()
-            if (currentVideo && currentVideo.srcObject) {
-                currentVideo.srcObject.getTracks().forEach(t => t.stop())
-            }
+    const drawOverlay = (boardState) => {
+        const ctx = canvasRef.current?.getContext('2d')
+        if (!ctx || !videoRef.current) return
+
+        const w = canvasRef.current.width
+        const h = canvasRef.current.height
+        ctx.clearRect(0, 0, w, h)
+
+        // Aquí pintaríamos la cuadrícula proyectada si tuviéramos las esquinas en boardState,
+        // pero por ahora pintamos etiquetas simbólicas sobre un grid 8x8 relativo al centro
+        // para dar feedback visual. (En un sistema real, el backend devolvería las esquinas 
+        // detectadas para pintar el polígono exacto).
+        // Simplificamos: grid centrado
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"
+        ctx.lineWidth = 1
+        const size = Math.min(w, h) * 0.8
+        const x0 = (w - size) / 2
+        const y0 = (h - size) / 2
+        const cell = size / 8
+
+        for (let i = 0; i <= 8; i++) {
+            ctx.beginPath(); ctx.moveTo(x0 + i * cell, y0); ctx.lineTo(x0 + i * cell, y0 + size); ctx.stroke()
+            ctx.beginPath(); ctx.moveTo(x0, y0 + i * cell); ctx.lineTo(x0 + size, y0 + i * cell); ctx.stroke()
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
 
-    // Iniciar retransmisión
-    const startBroadcast = async () => {
-        // Validación de campos obligatorios
-        if (!formData.evento || !formData.blancas || !formData.negras) {
-            setError('Por favor, rellena los campos obligatorios: Evento, Blancas y Negras.')
-            return
+        // Si hay piezas detectadas, las marcamos
+        if (boardState) {
+            Object.entries(boardState).forEach(([sq, val]) => {
+                if (val.label !== 'empty') {
+                    const col = sq.charCodeAt(0) - 97
+                    const row = 8 - parseInt(sq[1])
+                    const cx = x0 + col * cell + cell / 2
+                    const cy = y0 + row * cell + cell / 2
+                    
+                    ctx.fillStyle = val.label.startsWith('w') ? "rgba(230, 239, 250, 0.8)" : "rgba(32, 78, 173, 0.8)"
+                    ctx.beginPath(); ctx.arc(cx, cy, cell * 0.3, 0, Math.PI * 2); ctx.fill()
+                    ctx.fillStyle = val.label.startsWith('w') ? "#204ead" : "#ffffff"
+                    ctx.font = "10px sans-serif"
+                    ctx.textAlign = "center"
+                    ctx.fillText(val.label.split('_')[1], cx, cy + 3)
+                }
+            })
         }
+    }
 
-        // Limpiar errores previos
-        setError(null)
+    const addLog = (msg) => {
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        setLogs(prev => [{ time, msg }, ...prev].slice(0, 5))
+    }
 
+    const finalizeGame = async () => {
+        if (!confirm("¿Deseas finalizar la retransmisión y guardar la partida?")) return
+        
         try {
-            // Inicializar retransmisión en el backend
-            const payload = {
-                evento: formData.evento || undefined,
-                blancas: formData.blancas || undefined,
-                negras: formData.negras || undefined,
-                ronda: formData.ronda ? parseInt(formData.ronda) : undefined,
-                tablero: formData.tablero ? parseInt(formData.tablero) : undefined,
-                lugar: formData.lugar || undefined,
-                resultado: formData.resultado || undefined
-            }
-
-            // Solicitar token al backend
-            const res = await authFetch('/retransmision/host', {
+            await authFetch(`/retransmision/${retransmisionId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ is_activa: false })
+            })
+            
+            await authFetch('/partidas', {
                 method: 'POST',
-                body: JSON.stringify(payload)
+                body: JSON.stringify({
+                    blancas: "Jugador Local",
+                    negras: "Oponente",
+                    pgn: game.current.pgn(),
+                    tipo: "PR"
+                })
             })
 
-            if (!res.ok) throw new Error('Error al registrar la retransmisión')
-
-            const data = await res.json()
-            const newToken = data.token
-
-            // Almacenar el token
-            setToken(newToken)
-            // Marcar como retransmitiendo
-            setIsBroadcasting(true)
-
-            // Conectar WebSocket
-            const wsUrl = `${import.meta.env.VITE_API_URL.replace('http', 'ws')}/retransmision/ws/host/${newToken}`
-            wsRef.current = new WebSocket(wsUrl)
-
-            wsRef.current.onopen = () => {
-                console.log("WebSocket Host Conectado")
-                loopRef.current = setTimeout(processFrame, 500)
-                setActiveTab('vision') // Pasar a la pestaña de visión automáticamente en móviles
-            }
-
-            // Manejar errores de WebSocket
-            wsRef.current.onerror = () => {
-                setError('Error de conexión WebSocket')
-                stopBroadcast()
-            }
-
-            // Manejar cierre de WebSocket
-            wsRef.current.onclose = () => {
-                console.log("WebSocket Host Cerrado")
-                setIsBroadcasting(false)
-            }
+            addLog("Partida guardada con éxito")
+            setTimeout(() => navigate('/games'), 2000)
         } catch (err) {
-            console.error("Error iniciando retransmisión:", err)
-            setError('Fallo al registrar la retransmisión. Revisa tu conexión.')
+            addLog("Error al guardar")
         }
     }
 
-    // Detener retransmisión
-    const stopBroadcast = () => {
-        setIsBroadcasting(false)
-        if (wsRef.current) {
-            wsRef.current.close()
-            wsRef.current = null
-        }
-        if (loopRef.current) {
-            clearTimeout(loopRef.current)
-            loopRef.current = null
-        }
+    const copyUrl = () => {
+        const url = `${window.location.origin}/retransmision/${token}`
+        navigator.clipboard.writeText(url)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
     }
 
-    // Detener cámara y retransmisión
-    const stopCameraAndBroadcast = () => {
-        stopBroadcast()
-        if (videoRef.current && videoRef.current.srcObject) {
-            videoRef.current.srcObject.getTracks().forEach(t => t.stop())
-            videoRef.current.srcObject = null
-            setIsCameraActive(false)
-        }
+    // Helper para PGN
+    const parsePgn = (pgnString) => {
+        if (!pgnString) return []
+        const moves = pgnString.replace(/\[.*?\]/g, '').trim().split(/\d+\.\s+/).filter(Boolean)
+        return moves.map(m => m.trim())
     }
 
-    // Control de cámara
-    const toggleCameraPower = () => {
-        if (isCameraActive) {
-            stopCameraAndBroadcast()
-        } else {
-            startCamera()
-        }
-    }
-
-    // Procesar frame
-    const processFrame = async () => {
-        if (!isBroadcasting || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
-
-        const video = videoRef.current
-        const canvas = canvasRef.current
-        if (!video || !canvas || video.readyState !== 4) {
-            loopRef.current = setTimeout(processFrame, 500)
-            return
-        }
-
-        const start = performance.now()
-
-        canvas.width = video.videoWidth
-        canvas.height = video.videoHeight
-        canvas.getContext('2d').drawImage(video, 0, 0)
-
-        canvas.toBlob(async (blob) => {
-            if (!blob) return
-
-            const fd = new FormData()
-            fd.append('file', blob)
-
-            try {
-                // Envía el frame a procesar
-                const res = await fetch(`${import.meta.env.VITE_API_URL}/vision/recognize-board`, {
-                    method: 'POST',
-                    body: fd
-                })
-                const data = await res.json()
-
-                setStats(prev => ({ ...prev, ping: Math.round(performance.now() - start) }))
-
-                if (data.success) {
-                    setStats(prev => ({ ...prev, occupied: data.occupied_count, total: data.num_squares }))
-                    setDebugImage(data.rectified_2d || data.debug_image) // Mostrar 2D rectificado en consola
-
-                    // Enviar estado al WebSocket para los espectadores
-                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                        wsRef.current.send(JSON.stringify({
-                            type: 'BOARD_STATE',
-                            // Inyectar metadatos para el espectador
-                            data: {
-                                ...data,
-                                metadata: formData
-                            }
-                        }))
-                    }
-                }
-            } catch (err) {
-                console.error("Error procesando frame:", err)
-            } finally {
-                if (isBroadcasting) {
-                    loopRef.current = setTimeout(processFrame, 500)
-                }
-            }
-        }, 'image/jpeg', 0.8)
-    }
-
-    // Compartir enlace de retransmisión
-    const shareLink = async () => {
-        if (!token) return
-        const link = `${window.location.origin}/retransmision/${token}`
-
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: 'Retransmisión de Ajedrez',
-                    text: `Sigue la partida en directo entre ${formData.blancas || 'Blancas'} y ${formData.negras || 'Negras'}`,
-                    url: link
-                })
-            } catch (err) {
-                console.log("Error compartiendo", err)
-            }
-        } else {
-            navigator.clipboard.writeText(link)
-            alert('Enlace público copiado al portapapeles.')
-        }
-    }
-
-    // Control de pestañas para móvil
-    const getTabClass = (tabName) => activeTab !== tabName ? 'hidden md:flex' : 'flex'
-
-    // Renderizado
     return (
-        <div className="min-h-screen flex flex-col bg-white overflow-hidden">
-            <Header />
-
-            {/* Título de la página */}
-            <div className="w-full max-w-[1800px] mx-auto pt-8 px-6 md:px-12 lg:px-24 xl:px-32 bg-white">
-                <h1 className="font-display text-3xl font-black text-cr-text tracking-tight">
-                    Partida retransmitida
-                </h1>
-            </div>
-
-            <div className="flex-1 flex flex-col md:flex-row relative mt-4 pb-16 md:pb-0 w-full max-w-[1800px] mx-auto px-0 md:px-12 lg:px-24 xl:px-32">
-
-                {/* 1. CONFIGURACIÓN */}
-                <div className={`w-full md:w-1/3 flex-col p-6 md:p-10 lg:p-12 bg-white border-r border-cr-border/40 overflow-y-auto ${getTabClass('config')}`}>
-                    <div className="max-w-md mx-auto w-full">
-                        <h2 className="font-display text-2xl font-black text-cr-text tracking-tight mb-8">
-                            Configuración
-                        </h2>
-                        <div className="space-y-4">
-                            <InputText id="evento" name="evento" label="Evento *" value={formData.evento} onChange={handleInputChange} disabled={isBroadcasting} />
-                            <InputText id="blancas" name="blancas" label="Blancas *" value={formData.blancas} onChange={handleInputChange} disabled={isBroadcasting} />
-                            <InputText id="negras" name="negras" label="Negras *" value={formData.negras} onChange={handleInputChange} disabled={isBroadcasting} />
-                            <InputText id="lugar" name="lugar" label="Lugar" value={formData.lugar} onChange={handleInputChange} disabled={isBroadcasting} />
-                            <div className="flex gap-4">
-                                <InputText id="ronda" name="ronda" label="Ronda" value={formData.ronda} onChange={handleInputChange} disabled={isBroadcasting} />
-                                <InputText id="tablero" name="tablero" label="Tablero" value={formData.tablero} onChange={handleInputChange} disabled={isBroadcasting} />
-                            </div>
-
-                            {!isBroadcasting ? (
-                                <Button variant="primary" className="w-full mt-6 h-14 font-black uppercase tracking-widest shadow-lg shadow-cr-primary/20" onClick={startBroadcast}>
-                                    Activar Visión IA
-                                </Button>
-                            ) : (
-                                <div className="mt-6 p-4 bg-emerald-50 text-emerald-600 rounded-xl font-bold flex items-center justify-center text-sm border border-emerald-100">
-                                    <Activity size={18} className="mr-2 animate-pulse" />
-                                    Visión IA Activada
-                                </div>
+        <div className="max-w-7xl mx-auto px-4 py-8">
+            <div className="flex flex-col lg:flex-row gap-8">
+                
+                {/* --- COLUMNA IZQUIERDA: CÁMARA --- */}
+                <div className="lg:w-2/3">
+                    <div className="relative rounded-xl overflow-hidden bg-black aspect-video shadow-xl border border-cr-border">
+                        <video 
+                            ref={videoRef}
+                            autoPlay 
+                            playsInline 
+                            muted
+                            className="w-full h-full object-cover"
+                        />
+                        <canvas 
+                            ref={canvasRef}
+                            width={1280}
+                            height={720}
+                            className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                        />
+                        
+                        {/* Overlay de estado */}
+                        <div className="absolute top-4 left-4 flex gap-2">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium backdrop-blur-md flex items-center gap-1.5 ${
+                                isCalibrated ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                            }`}>
+                                {isCalibrated ? <CheckCircle2 size={12}/> : <AlertCircle size={12}/>}
+                                {isCalibrated ? "Calibrado" : "Sin calibrar"}
+                            </span>
+                            {isAutoMode && (
+                                <span className="px-3 py-1 bg-cr-primary/40 text-blue-100 rounded-full text-xs font-medium backdrop-blur-md border border-cr-primary/30 animate-pulse flex items-center gap-1.5">
+                                    <div className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
+                                    En vivo
+                                </span>
                             )}
                         </div>
+
+                        {/* Special Move Badge */}
+                        <AnimatePresence>
+                            {specialMove && (
+                                <motion.div 
+                                    initial={{ scale: 0.8, opacity: 0, y: 20 }}
+                                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                                    exit={{ scale: 0.8, opacity: 0 }}
+                                    className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-cr-primary text-white px-6 py-3 rounded-xl shadow-2xl font-bold flex items-center gap-3 border-2 border-white/20"
+                                >
+                                    <span className="text-2xl">♟</span>
+                                    {specialMove.replace('_', ' ').toUpperCase()}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
-                </div>
 
-                {/* 2. VISIÓN IA */}
-                <div className={`w-full md:w-1/3 flex-col p-6 md:p-10 lg:p-12 bg-white border-r border-cr-border/40 overflow-y-auto ${getTabClass('vision')}`}>
-                    <div className="max-w-md mx-auto w-full">
-                        <h2 className="font-display text-2xl font-black text-cr-text tracking-tight mb-8">
-                            Visión IA
-                        </h2>
-
-                        {error && (
-                            <div className="w-full bg-rose-50 text-rose-500 p-3 rounded-xl flex items-center mb-4 text-xs font-bold">
-                                <AlertCircle className="mr-2" size={16} />
-                                {error}
-                            </div>
+                    {/* Controles */}
+                    <div className="mt-6 flex flex-wrap items-center gap-4 bg-cr-surface p-5 rounded-2xl border border-cr-border shadow-sm">
+                        {!isCamActive ? (
+                            <Button onClick={startCamera} variant="primary" className="flex items-center gap-2">
+                                <Camera size={18} /> Iniciar cámara
+                            </Button>
+                        ) : (
+                            <Button onClick={calibrar} variant="secondary" className="flex items-center gap-2">
+                                <Settings size={18} /> Calibrar tablero
+                            </Button>
                         )}
 
-                        <div className="relative w-full aspect-video bg-gray-900 rounded-2xl overflow-hidden shadow-inner mb-4 border-[3px] border-cr-border">
-                            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-                            <canvas ref={canvasRef} className="hidden" />
+                        <div className="h-8 w-px bg-cr-border hidden sm:block" />
 
-                            {isBroadcasting && (
-                                <div className="absolute top-4 right-4 flex items-center bg-emerald-500 text-white px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-md">
-                                    <span className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></span>
-                                    En Vivo
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex gap-3 mb-8">
-                            <Button variant="outline" className="flex-1 text-xs font-bold uppercase" onClick={toggleCamera}>
-                                <SwitchCamera size={16} className="mr-2" />
-                                Cambiar
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className={`flex-1 text-xs font-bold uppercase ${isCameraActive ? 'text-rose-500 hover:bg-rose-50 border-rose-500/30' : 'text-emerald-500 hover:bg-emerald-50 border-emerald-500/30'}`}
-                                onClick={toggleCameraPower}
+                        <div className="flex items-center gap-3 ml-auto">
+                            <span className="text-sm font-medium text-cr-muted">Reconocimiento</span>
+                            <button 
+                                onClick={() => isCalibrated && setIsAutoMode(!isAutoMode)}
+                                disabled={!isCalibrated}
+                                className={`w-12 h-6 rounded-full transition-colors relative ${
+                                    !isCalibrated ? 'bg-gray-200 cursor-not-allowed' : (isAutoMode ? 'bg-cr-primary' : 'bg-gray-300')
+                                }`}
                             >
-                                {isCameraActive ? (
-                                    <><StopCircle size={16} className="mr-2" /> Parar</>
-                                ) : (
-                                    <><Play size={16} className="mr-2" /> Activar</>
-                                )}
-                            </Button>
+                                <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${isAutoMode ? 'translate-x-6' : ''}`} />
+                            </button>
                         </div>
+                    </div>
 
-                        <div className="mb-4">
-                            <InputSelect
-                                id="resultado"
-                                name="resultado"
-                                label="Resultado"
-                                value={formData.resultado}
-                                onChange={handleInputChange}
-                                options={[
-                                    { value: 'En juego...', label: 'En juego...' },
-                                    { value: '1-0', label: '1-0 (Blancas)' },
-                                    { value: '0-1', label: '0-1 (Negras)' },
-                                    { value: '1/2-1/2', label: '1/2-1/2 (Tablas)' }
-                                ]}
+                    {/* Info Status */}
+                    <div className="mt-4 p-4 bg-cr-primary-light rounded-xl border border-cr-primary/10 flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${isAutoMode ? 'bg-cr-primary animate-pulse' : 'bg-cr-muted'}`} />
+                        <span className="text-cr-primary font-medium">{status}</span>
+                    </div>
+                </div>
+
+                {/* --- COLUMNA DERECHA: TABLERO + CONSOLA --- */}
+                <div className="lg:w-1/3 flex flex-col gap-6">
+                    
+                    {/* Mini tablero de visualización */}
+                    <div className="bg-cr-surface p-4 rounded-2xl border border-cr-border shadow-sm overflow-hidden">
+                        <div className="aspect-square w-full">
+                            <Chessboard 
+                                position={currentFen} 
+                                arePiecesDraggable={false}
+                                customSquareStyles={{
+                                    ...(lastMove && {
+                                        [lastMove.from]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' },
+                                        [lastMove.to]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' }
+                                    })
+                                }}
                             />
                         </div>
+                    </div>
 
-                        <div className="space-y-3 mt-8">
-                            <Button variant="primary" className="w-full font-black uppercase tracking-widest h-14" onClick={shareLink} disabled={!isBroadcasting}>
-                                <Share2 size={18} className="mr-3" />
-                                Compartir Retransmisión
-                            </Button>
-                            <Button variant="outline" className="w-full font-black uppercase tracking-widest h-14 text-rose-500 border-rose-200 hover:bg-rose-50" onClick={stopBroadcast} disabled={!isBroadcasting}>
-                                Finalizar Retransmisión
-                            </Button>
+                    {/* PGN / Historial */}
+                    <div className="bg-cr-surface rounded-2xl border border-cr-border shadow-sm flex flex-col h-64">
+                        <div className="p-4 border-b border-cr-border flex items-center gap-2">
+                            <History size={16} className="text-cr-primary"/>
+                            <span className="font-bold text-sm uppercase tracking-wider">Historial</span>
+                        </div>
+                        <div className="p-4 overflow-y-auto flex-1 font-figurine text-lg leading-relaxed bg-cr-surface2">
+                            <div className="flex flex-wrap gap-x-6 gap-y-2">
+                                {parsePgn(pgn).map((move, i) => (
+                                    <div key={i} className={`px-2 py-1 rounded ${i === parsePgn(pgn).length - 1 ? 'bg-cr-primary-light text-cr-primary' : ''}`}>
+                                        <span className="text-cr-muted mr-2">{i + 1}.</span>
+                                        {move}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {/* 3. CONSOLA */}
-                <div className={`w-full md:w-1/3 flex-col p-6 md:p-10 lg:p-12 bg-white overflow-y-auto ${getTabClass('console')}`}>
-                    <div className="max-w-md mx-auto w-full flex flex-col h-full">
-                        <h2 className="font-display text-2xl font-black text-cr-text tracking-tight mb-8">
-                            Consola
-                        </h2>
+                    {/* Logs técnicos */}
+                    <div className="bg-cr-surface2 p-4 rounded-xl border border-cr-border font-mono text-[10px] h-32 overflow-hidden">
+                        {logs.length === 0 && <span className="text-cr-muted">Esperando actividad...</span>}
+                        {logs.map((log, i) => (
+                            <div key={i} className="mb-1">
+                                <span className="text-cr-muted mr-2">[{log.time}]</span>
+                                <span>{log.msg}</span>
+                            </div>
+                        ))}
+                    </div>
 
-                        <h3 className="font-bold text-cr-text uppercase tracking-widest text-[11px] mb-3">
-                            Tablero rectificado (vista cenital)
-                        </h3>
-
-                        <div className="w-full max-w-[260px] mx-auto aspect-square bg-white rounded-2xl overflow-hidden border border-cr-border shadow-sm flex items-center justify-center p-2 mb-6">
-                            {debugImage ? (
-                                <img src={debugImage} alt="Visión Debug" className="w-full h-full object-contain rounded-xl" />
-                            ) : (
-                                <div className="flex flex-col items-center text-cr-muted opacity-50">
-                                    <RefreshCw size={32} className="mb-2" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Esperando datos</span>
-                                </div>
-                            )}
-                        </div>
-
-                        <h3 className="font-bold text-cr-text uppercase tracking-widest text-[11px] mb-3">
-                            Registro de actividad
-                        </h3>
-
-                        <div className="bg-white border border-cr-border rounded-xl p-4 h-[160px] overflow-y-auto text-xs font-mono w-full">
-                            {isBroadcasting ? (
-                                <div className="space-y-4">
-                                    <div className="text-emerald-600">
-                                        <p>[{new Date().toLocaleTimeString()}]</p>
-                                        <p>Conexión WS establecida ({stats.ping}ms)</p>
-                                        <p>Homografía correcta</p>
-                                        <p>Casillas ocupadas: {stats.occupied}/{stats.total}</p>
-                                    </div>
-                                    <div className="text-cr-muted">
-                                        <p>Token de sesión: {token}</p>
-                                        <p>Enlace copiable disponible.</p>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="text-cr-muted italic">
-                                    La consola está inactiva.
-                                </div>
-                            )}
-                        </div>
+                    {/* Acciones finales */}
+                    <div className="flex gap-3">
+                        <Button onClick={() => setShowShareModal(true)} variant="ghost" className="flex-1 border border-cr-border">
+                            <Share2 size={18} /> Compartir
+                        </Button>
+                        <Button onClick={finalizeGame} variant="primary" className="flex-1">
+                            <Save size={18} /> Finalizar
+                        </Button>
                     </div>
                 </div>
             </div>
 
-            {/* Menú inferior para móviles */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-cr-border flex items-stretch z-50">
-                <button onClick={() => setActiveTab('config')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${activeTab === 'config' ? 'text-cr-primary' : 'text-cr-muted'}`}>
-                    <div className={`w-8 h-1 rounded-full mb-1 transition-all ${activeTab === 'config' ? 'bg-cr-primary' : 'bg-transparent'}`} />
-                    <span className="text-[10px] uppercase font-black tracking-widest">Config</span>
-                </button>
-                <button onClick={() => setActiveTab('vision')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${activeTab === 'vision' ? 'text-cr-primary' : 'text-cr-muted'}`}>
-                    <div className={`w-8 h-1 rounded-full mb-1 transition-all ${activeTab === 'vision' ? 'bg-cr-primary' : 'bg-transparent'}`} />
-                    <span className="text-[10px] uppercase font-black tracking-widest">Visión IA</span>
-                </button>
-                <button onClick={() => setActiveTab('console')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${activeTab === 'console' ? 'text-cr-primary' : 'text-cr-muted'}`}>
-                    <div className={`w-8 h-1 rounded-full mb-1 transition-all ${activeTab === 'console' ? 'bg-cr-primary' : 'bg-transparent'}`} />
-                    <span className="text-[10px] uppercase font-black tracking-widest">Consola</span>
-                </button>
-            </div>
+            {/* Modal de Compartir */}
+            <Modal isOpen={showShareModal} onClose={() => setShowShareModal(false)} title="Compartir Retransmisión">
+                <div className="p-6">
+                    <p className="text-cr-muted text-sm mb-4">Envía este enlace a los espectadores para que sigan la partida en vivo:</p>
+                    <div className="flex gap-2 p-3 bg-cr-surface2 rounded-lg border border-cr-border">
+                        <input 
+                            type="text" 
+                            readOnly 
+                            value={`${window.location.origin}/retransmision/${token}`}
+                            className="bg-transparent flex-1 outline-none text-xs text-cr-text font-mono"
+                        />
+                        <button onClick={copyUrl} className="text-cr-primary hover:text-cr-primary-hover">
+                            {copied ? <Check size={18} /> : <Copy size={18} />}
+                        </button>
+                    </div>
+                    {copied && <p className="text-green-600 text-[10px] mt-2 font-medium">¡Enlace copiado!</p>}
+                </div>
+            </Modal>
         </div>
     )
 }
