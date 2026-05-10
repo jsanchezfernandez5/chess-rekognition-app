@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Chessboard } from 'react-chessboard'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Radio, ChevronLeft, LayoutDashboard, ExternalLink } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
+import Button from '@/components/ui/Button'
 
 export default function RetransmisionPublicaPage() {
     const { token } = useParams()

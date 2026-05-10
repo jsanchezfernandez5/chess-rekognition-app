@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Chess } from 'chess.js'
 import { Chessboard } from 'react-chessboard'
@@ -6,8 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
     Camera, 
     Settings, 
-    Play, 
-    Square, 
     Share2, 
     CheckCircle2, 
     AlertCircle, 
@@ -17,7 +15,7 @@ import {
     Check
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { Button } from '@/components/ui/Button'
+import Button from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 
 export default function RetransmisionPage() {
@@ -39,7 +37,6 @@ export default function RetransmisionPage() {
     const [isCamActive, setIsCamActive] = useState(false)
     const [isCalibrated, setIsCalibrated] = useState(false)
     const [isAutoMode, setIsAutoMode] = useState(false)
-    const [rectifiedImg, setRectifiedImg] = useState(null)
     const [status, setStatus] = useState("Inicia la cámara para comenzar")
     const [currentFen, setCurrentFen] = useState(game.current.fen())
     const [lastMove, setLastMove] = useState(null)
@@ -144,7 +141,6 @@ export default function RetransmisionPage() {
             const data = await res.json()
 
             if (data.success) {
-                setRectifiedImg(data.rectified_real)
                 setIsCalibrated(true)
                 setStatus("Tablero calibrado ✓")
                 addLog("Calibración exitosa")
