@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
 import AuthLayout from '@/components/layout/AuthLayout'
 import InputText from '@/components/ui/InputText'
 import InputEmail from '@/components/ui/InputEmail'
@@ -8,8 +7,8 @@ import InputPassword from '@/components/ui/InputPassword'
 import Button from '@/components/ui/Button'
 import { useAuth } from '@/hooks/useAuth'
 
+// Formulario de registro de usuario
 export default function RegisterPage() {
-    const { t } = useTranslation()
     const { register } = useAuth()
     const navigate = useNavigate()
 
@@ -30,10 +29,10 @@ export default function RegisterPage() {
     // Valida los campos del formulario
     function validate() {
         const next = {}
-        if (!form.nombre.trim()) next.nombre = t('auth.register.validation.nombre')
-        if (!form.username.trim()) next.username = t('auth.register.validation.username')
-        if (!form.email.trim()) next.email = t('auth.register.validation.email')
-        if (form.password.length < 8) next.password = t('auth.register.validation.password')
+        if (!form.nombre.trim()) next.nombre = 'El nombre es obligatorio'
+        if (!form.username.trim()) next.username = 'El usuario es obligatorio'
+        if (!form.email.trim()) next.email = 'El email es obligatorio'
+        if (form.password.length < 8) next.password = 'Mínimo 8 caracteres'
         return next
     }
 
@@ -45,7 +44,7 @@ export default function RegisterPage() {
         setLoading(true)
         try {
             await register(form)
-            setSuccess(t('auth.register.success'))
+            setSuccess('¡Cuenta creada! Revisa tu correo para confirmarla.')
             setTimeout(() => navigate('/login'), 2500)
         } catch (err) {
             setErrors({ global: err.message })
@@ -61,7 +60,7 @@ export default function RegisterPage() {
                 <InputText
                     id="nombre"
                     name="nombre"
-                    label={t('auth.register.nombreLabel')}
+                    label="Nombre *"
                     placeholder="José Joaquín"
                     value={form.nombre}
                     onChange={handleChange}
@@ -71,7 +70,7 @@ export default function RegisterPage() {
                 <InputText
                     id="apellidos"
                     name="apellidos"
-                    label={t('auth.register.apellidosLabel')}
+                    label="Apellidos"
                     placeholder="Sánchez"
                     value={form.apellidos}
                     onChange={handleChange}
@@ -81,7 +80,7 @@ export default function RegisterPage() {
                 <InputText
                     id="username"
                     name="username"
-                    label={t('auth.register.usernameLabel')}
+                    label="Usuario *"
                     placeholder="jjsanchez"
                     value={form.username}
                     onChange={handleChange}
@@ -93,7 +92,7 @@ export default function RegisterPage() {
                 <InputEmail
                     id="email"
                     name="email"
-                    label={t('auth.register.emailLabel')}
+                    label="Email *"
                     value={form.email}
                     onChange={handleChange}
                     error={errors.email}
@@ -103,7 +102,7 @@ export default function RegisterPage() {
                 <InputPassword
                     id="password"
                     name="password"
-                    label={t('auth.register.passwordLabel')}
+                    label="Contraseña *"
                     autoComplete="new-password"
                     value={form.password}
                     onChange={handleChange}
@@ -123,14 +122,14 @@ export default function RegisterPage() {
                 )}
 
                 <Button type="submit" size="lg" loading={loading} className="mt-1">
-                    {t('auth.register.submit')}
+                    Registrar
                 </Button>
             </form>
 
             <p className="text-sm text-center text-cr-muted mt-5">
-                {t('auth.register.hasAccount')}{' '}
+                ¿Ya tienes cuenta?{' '}
                 <Link to="/login" className="text-cr-primary font-medium hover:underline">
-                    {t('auth.register.loginLink')}
+                    Identifícate
                 </Link>
             </p>
         </AuthLayout>

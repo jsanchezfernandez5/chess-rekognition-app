@@ -1,5 +1,4 @@
 import { useNavigate, Link } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
 import {
     RotateCcw,
     Undo2,
@@ -25,7 +24,6 @@ import Header from '@/components/layout/Header'
  * Aquí podemos 'jugar' la partida en el tablero y rellenar los datos del torneo.
  */
 export default function IntroducirPartidaPage() {
-    const { t } = useTranslation()
     const { authFetch } = useAuth()
     const navigate = useNavigate()
     const boardRef = useRef(null)
@@ -100,15 +98,15 @@ export default function IntroducirPartidaPage() {
 
         // Validaciones básicas antes de intentar enviar nada
         const newErrors = {}
-        if (!formData.evento) newErrors.evento = t('introducirPartida.validation.evento')
-        if (!formData.blancas) newErrors.blancas = t('introducirPartida.validation.blancas')
-        if (!formData.negras) newErrors.negras = t('introducirPartida.validation.negras')
-        if (!formData.fecha) newErrors.fecha = t('introducirPartida.validation.fecha')
+        if (!formData.evento) newErrors.evento = 'El nombre del evento es necesario'
+        if (!formData.blancas) newErrors.blancas = 'Falta el nombre del jugador de blancas'
+        if (!formData.negras) newErrors.negras = 'Falta el nombre del jugador de negras'
+        if (!formData.fecha) newErrors.fecha = 'La fecha no puede estar vacía'
         if (!formData.resultado || formData.resultado === '*') {
-            newErrors.resultado = t('introducirPartida.validation.resultado')
+            newErrors.resultado = 'Por favor, selecciona el resultado de la partida'
         }
         if (!pgn || pgn.trim() === '' || pgn.trim() === '*') {
-            newErrors.pgn = t('introducirPartida.validation.pgn')
+            newErrors.pgn = '¡No has hecho ninguna jugada todavía!'
         }
 
         if (Object.keys(newErrors).length > 0) {
@@ -145,14 +143,14 @@ export default function IntroducirPartidaPage() {
 
             if (!res.ok) {
                 const errorData = await res.json()
-                throw new Error(errorData.detail || t('introducirPartida.modal.saveError'))
+                throw new Error(errorData.detail || 'Algo ha fallado al intentar guardar')
             }
 
             // Mostrar modal de éxito
             setModal({
                 isOpen: true,
-                title: t('introducirPartida.modal.successTitle'),
-                message: t('introducirPartida.modal.successMessage'),
+                title: '¡Éxito!',
+                message: 'La partida se ha guardado correctamente en tu historial.',
                 type: 'success',
                 onConfirm: () => navigate('/dashboard')
             })
@@ -161,8 +159,8 @@ export default function IntroducirPartidaPage() {
             console.error('Error al guardar:', error)
             setModal({
                 isOpen: true,
-                title: t('introducirPartida.modal.errorTitle'),
-                message: error.message || t('introducirPartida.modal.errorMessage'),
+                title: 'Error al guardar',
+                message: error.message || 'Error de conexión con el servidor. Por favor, inténtalo de nuevo.',
                 type: 'error',
                 onConfirm: hideModal
             })
@@ -183,7 +181,7 @@ export default function IntroducirPartidaPage() {
 
                     <div className="mb-10 text-center">
                         <h1 className="font-display text-2xl font-black text-cr-text tracking-tight">
-                            {t('introducirPartida.title')}
+                            Introducir partidas
                         </h1>
                     </div>
 
@@ -202,7 +200,7 @@ export default function IntroducirPartidaPage() {
                                 className="h-12 text-sm font-bold uppercase tracking-widest"
                             >
                                 <RotateCcw size={18} className="mr-2" />
-                                {t('introducirPartida.flip')}
+                                Girar
                             </Button>
                             <Button
                                 variant="primary"
@@ -211,14 +209,14 @@ export default function IntroducirPartidaPage() {
                                 className="h-12 text-sm font-bold uppercase tracking-widest disabled:opacity-30"
                             >
                                 <Undo2 size={18} className="mr-2" />
-                                {t('introducirPartida.undo')}
+                                Deshacer
                             </Button>
                         </div>
 
                         {/* Visor de la notación en formato FIGURINE */}
                         <div className="w-full mt-10 mb-16 md:mb-0">
                             <label className="block text-[11px] uppercase font-black text-cr-muted mb-2 tracking-widest pl-1">
-                                {t('introducirPartida.notation')}
+                                Notación de la partida
                             </label>
                             <div className="relative group">
                                 <textarea
@@ -243,7 +241,7 @@ export default function IntroducirPartidaPage() {
 
                         <div className="mb-10 text-center">
                             <h2 className="font-display text-2xl font-black text-cr-text tracking-tight">
-                                {t('introducirPartida.formTitle')}
+                                Datos de la Partida
                             </h2>
                         </div>
 
@@ -252,7 +250,7 @@ export default function IntroducirPartidaPage() {
                             <InputText
                                 id="evento"
                                 name="evento"
-                                label={t('introducirPartida.eventoLabel')}
+                                label="Nombre del Evento *"
                                 placeholder="Ej: Torneo de Primavera 2026"
                                 value={formData.evento}
                                 onChange={handleInputChange}
@@ -264,7 +262,7 @@ export default function IntroducirPartidaPage() {
                             <InputText
                                 id="blancas"
                                 name="blancas"
-                                label={t('introducirPartida.blancasLabel')}
+                                label="Jugador Blancas *"
                                 placeholder="Nombre completo"
                                 value={formData.blancas}
                                 onChange={handleInputChange}
@@ -275,7 +273,7 @@ export default function IntroducirPartidaPage() {
                             <InputText
                                 id="negras"
                                 name="negras"
-                                label={t('introducirPartida.negrasLabel')}
+                                label="Jugador Negras *"
                                 placeholder="Nombre completo"
                                 value={formData.negras}
                                 onChange={handleInputChange}
@@ -286,7 +284,7 @@ export default function IntroducirPartidaPage() {
                             <InputDate
                                 id="fecha"
                                 name="fecha"
-                                label={t('introducirPartida.fechaLabel')}
+                                label="Fecha *"
                                 value={formData.fecha}
                                 onChange={handleInputChange}
                                 error={errors.fecha}
@@ -296,23 +294,23 @@ export default function IntroducirPartidaPage() {
                             <InputSelect
                                 id="resultado"
                                 name="resultado"
-                                label={t('introducirPartida.resultadoLabel')}
+                                label="Resultado *"
                                 value={formData.resultado}
                                 onChange={handleInputChange}
                                 error={errors.resultado}
                                 disabled={isSaving}
                                 options={[
-                                    { value: '*', label: t('introducirPartida.resultadoOptions.placeholder') },
-                                    { value: '1-0', label: t('introducirPartida.resultadoOptions.blancas') },
-                                    { value: '0-1', label: t('introducirPartida.resultadoOptions.negras') },
-                                    { value: '1/2-1/2', label: t('introducirPartida.resultadoOptions.tablas') }
+                                    { value: '*', label: 'Selecciona resultado...' },
+                                    { value: '1-0', label: '1-0 (Blancas)' },
+                                    { value: '0-1', label: '0-1 (Negras)' },
+                                    { value: '1/2-1/2', label: '1/2-1/2 (Tablas)' }
                                 ]}
                             />
 
                             <InputText
                                 id="ronda"
                                 name="ronda"
-                                label={t('introducirPartida.rondaLabel')}
+                                label="Nº Ronda"
                                 placeholder="Ej: 3"
                                 value={formData.ronda}
                                 onChange={handleInputChange}
@@ -322,7 +320,7 @@ export default function IntroducirPartidaPage() {
                             <InputText
                                 id="tablero"
                                 name="tablero"
-                                label={t('introducirPartida.tableroLabel')}
+                                label="Nº Tablero"
                                 placeholder="Ej: 15"
                                 value={formData.tablero}
                                 onChange={handleInputChange}
@@ -332,7 +330,7 @@ export default function IntroducirPartidaPage() {
                             <InputText
                                 id="lugar"
                                 name="lugar"
-                                label={t('introducirPartida.lugarLabel')}
+                                label="Localidad / Club"
                                 placeholder="Ciudad, Club..."
                                 value={formData.lugar}
                                 onChange={handleInputChange}
@@ -343,7 +341,7 @@ export default function IntroducirPartidaPage() {
                             <Textarea
                                 id="observaciones"
                                 name="observaciones"
-                                label={t('introducirPartida.observacionesLabel')}
+                                label="Observaciones adicionales"
                                 placeholder="Cualquier nota extra sobre la partida..."
                                 value={formData.observaciones}
                                 onChange={handleInputChange}
@@ -362,8 +360,8 @@ export default function IntroducirPartidaPage() {
                                         <Loader2 size={24} className="animate-spin" />
                                     ) : (
                                         <>
-                                        <Save size={20} className="mr-3" />
-                                        {t('introducirPartida.save')}
+                                            <Save size={20} className="mr-3" />
+                                            Guardar Partida
                                         </>
                                     )}
                                 </Button>
@@ -381,14 +379,14 @@ export default function IntroducirPartidaPage() {
                     className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${activeTab === 'board' ? 'text-cr-primary' : 'text-cr-muted'}`}
                 >
                     <div className={`w-8 h-1 rounded-full mb-1 transition-all ${activeTab === 'board' ? 'bg-cr-primary' : 'bg-transparent'}`} />
-                    <span className="text-[10px] uppercase font-black tracking-widest">{t('introducirPartida.tabBoard')}</span>
+                    <span className="text-[10px] uppercase font-black tracking-widest">Tablero</span>
                 </button>
                 <button
                     onClick={() => setActiveTab('form')}
                     className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${activeTab === 'form' ? 'text-cr-primary' : 'text-cr-muted'}`}
                 >
                     <div className={`w-8 h-1 rounded-full mb-1 transition-all ${activeTab === 'form' ? 'bg-cr-primary' : 'bg-transparent'}`} />
-                    <span className="text-[10px] uppercase font-black tracking-widest">{t('introducirPartida.tabForm')}</span>
+                    <span className="text-[10px] uppercase font-black tracking-widest">Datos</span>
                 </button>
             </div>
 
@@ -410,7 +408,7 @@ export default function IntroducirPartidaPage() {
                         className={`w-full h-14 text-sm font-black uppercase tracking-widest shadow-lg ${modal.type === 'success' ? 'shadow-emerald-500/20' : 'shadow-rose-500/20'}`}
                         onClick={modal.onConfirm}
                     >
-                        {modal.type === 'success' ? t('introducirPartida.modal.continue') : t('introducirPartida.modal.understood')}
+                        {modal.type === 'success' ? 'Continuar al Dashboard' : 'Entendido'}
                     </Button>
                 </div>
             </Modal>

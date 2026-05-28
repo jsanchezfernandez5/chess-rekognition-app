@@ -1,23 +1,24 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { LayoutDashboard, Edit3, Bot, Video, VideoOff, ClipboardList, LogOut, Menu } from 'lucide-react'
 
+// Configuración de la navegación principal
+const NAV = [
+    { path: '/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
+    { path: '/games/input', icon: <Edit3 size={20} />, label: 'Introducir partidas' },
+    { path: '/stockfish', icon: <Bot size={20} />, label: 'Juega vs StockFish' },
+    { path: '/games/live', icon: <Video size={20} />, label: 'Partida retransmitida' },
+    { path: '/games', icon: <ClipboardList size={20} />, label: 'Listado de partidas' },
+]
+
+// Componente de Diseño Principal (Layout).
 export default function AppLayout({ children }) {
-    const { t } = useTranslation()
     const { user, logout } = useAuth()
     const navigate = useNavigate()
     const { pathname } = useLocation()
 
-    const NAV = [
-        { path: '/dashboard', icon: <LayoutDashboard size={20} />, label: t('appLayout.nav.dashboard') },
-        { path: '/games/input', icon: <Edit3 size={20} />, label: t('appLayout.nav.input') },
-        { path: '/stockfish', icon: <Bot size={20} />, label: t('appLayout.nav.stockfish') },
-        { path: '/games/live', icon: <Video size={20} />, label: t('appLayout.nav.live') },
-        { path: '/games', icon: <ClipboardList size={20} />, label: t('appLayout.nav.list') },
-    ]
-
+    // Gestiona el cierre de sesión del usuario.
     function handleLogout() {
         logout()
         navigate('/login')
@@ -45,7 +46,7 @@ export default function AppLayout({ children }) {
                     <button
                         onClick={() => setSidebarOpen(true)}
                         className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                        aria-label={t('appLayout.ariaMenu')}
+                        aria-label="Abrir menú"
                     >
                         <Menu size={24} />
                     </button>
@@ -108,7 +109,7 @@ export default function AppLayout({ children }) {
                         </div>
                         <div className="min-w-0">
                             <p className="text-sm font-semibold text-gray-900 truncate">{user?.nombre || user?.username}</p>
-                            <p className="text-xs text-gray-500">{t('appLayout.role')}</p>
+                            <p className="text-xs text-gray-500">Jugador</p>
                         </div>
                     </div>
                     <button
@@ -118,7 +119,7 @@ export default function AppLayout({ children }) {
                         <span className="flex items-center justify-center w-5">
                             <LogOut size={20} />
                         </span>
-                        <span className="font-medium">{t('appLayout.logout')}</span>
+                        <span className="font-medium">Cerrar sesión</span>
                     </button>
                 </div>
             </aside>

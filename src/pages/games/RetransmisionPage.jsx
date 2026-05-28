@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
 import { Chess } from 'chess.js'
 import { Chessboard } from 'react-chessboard'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -21,7 +20,6 @@ import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 
 export default function RetransmisionPage() {
-    const { t } = useTranslation()
     const { authFetch } = useAuth()
     const navigate = useNavigate()
     
@@ -40,7 +38,7 @@ export default function RetransmisionPage() {
     const [isCamActive, setIsCamActive] = useState(false)
     const [isCalibrated, setIsCalibrated] = useState(false)
     const [isAutoMode, setIsAutoMode] = useState(false)
-    const [status, setStatus] = useState(t("retransmision.status.startCamera"))
+    const [status, setStatus] = useState("Inicia la cámara para comenzar")
     const [currentFen, setCurrentFen] = useState(game.current.fen())
     const [lastMove, setLastMove] = useState(null)
     const [pgn, setPgn] = useState("")
@@ -59,10 +57,10 @@ export default function RetransmisionPage() {
                 const res = await authFetch('/retransmision/host', {
                     method: 'POST',
                     body: JSON.stringify({
-                        blancas: t("retransmision.defaultNames.local"),
-                        negras: t("retransmision.defaultNames.opponent"),
-                        evento: t("retransmision.defaultNames.event"),
-                        tablero: t("retransmision.defaultNames.board")
+                        blancas: "Jugador Local",
+                        negras: "Oponente",
+                        evento: "Partida en vivo",
+                        tablero: "Mesa 1"
                     })
                 })
                 const data = await res.json()
@@ -73,7 +71,7 @@ export default function RetransmisionPage() {
                     initWebSocket(data.token)
                 }
             } catch (err) {
-                addLog(t("retransmision.logs.initError") + err.message)
+                addLog("Error al inicializar retransmisión: " + err.message)
             }
         }
         init()
@@ -105,8 +103,8 @@ export default function RetransmisionPage() {
         const wsUrl = `${protocol}//${host}/retransmision/ws/host/${token}`
         const ws = new WebSocket(wsUrl)
         
-        ws.onopen = () => addLog(t("retransmision.logs.wsOpen"))
-        ws.onerror = () => addLog(t("retransmision.logs.wsError"))
+        ws.onopen = () => addLog("Canal de retransmisión abierto")
+        ws.onerror = () => addLog("Error en WebSocket")
         wsRef.current = ws
     }
 
@@ -119,19 +117,19 @@ export default function RetransmisionPage() {
             if (videoRef.current) {
                 videoRef.current.srcObject = stream
                 setIsCamActive(true)
-                setStatus(t("retransmision.status.notCalibrated"))
-                addLog(t("retransmision.logs.cameraStarted"))
+                setStatus("Tablero no calibrado")
+                addLog("Cámara iniciada")
             }
         } catch (err) {
-            addLog(t("retransmision.logs.cameraError") + err.message)
-            setStatus(t("retransmision.status.error"))
+            addLog("Error de cámara: " + err.message)
+            setStatus("Error de cámara")
         }
     }
 
     // --- Calibración ---
     const calibrar = async () => {
         if (!videoRef.current) return
-        setStatus(t("retransmision.status.calibrating"))
+        setStatus("Calibrando...")
         
         const blob = await captureFrame()
         const fd = new FormData()
@@ -147,26 +145,26 @@ export default function RetransmisionPage() {
 
             if (data.success) {
                 setIsCalibrated(true)
-                setStatus(t("retransmision.status.calibrated"))
-                addLog(t("retransmision.logs.calibrationSuccess"))
+                setStatus("Tablero calibrado ✓")
+                addLog("Calibración exitosa")
             } else {
                 setIsCalibrated(false)
-                setStatus(t("retransmision.status.calibrationFailed"))
-                addLog(t("retransmision.logs.calibrationError") + data.error)
+                setStatus("Calibración fallida — ajusta el encuadre")
+                addLog("Error calibración: " + data.error)
             }
         } catch (err) {
-            addLog(t("retransmision.logs.calibrationNetworkError"))
+            addLog("Error de red en calibración")
         }
     }
 
     // --- Bucle de detección ---
     useEffect(() => {
         if (isAutoMode) {
-            setStatus(t("retransmision.status.listening"))
+            setStatus("Escuchando...")
             intervalRef.current = setInterval(detectMove, 500)
         } else {
             clearInterval(intervalRef.current)
-            if (isCalibrated) setStatus(t("retransmision.status.calibrated"))
+            if (isCalibrated) setStatus("Tablero calibrado ✓")
         }
         return () => clearInterval(intervalRef.current)
     }, [isAutoMode, isCalibrated])
@@ -191,7 +189,7 @@ export default function RetransmisionPage() {
             if (!data.success) {
                 missCountRef.current++
                 if (missCountRef.current >= MISS_THRESHOLD) {
-                    setStatus(t("retransmision.status.handDetected"))
+                    setStatus("Mano detectada (esperando...)")
                 }
                 return
             }
@@ -207,13 +205,13 @@ export default function RetransmisionPage() {
                 try {
                     game.current.move(move.uci)
                 } catch (e) {
-                    addLog(t("retransmision.logs.invalidMove") + e.message)
+                    addLog("Movimiento inválido en la lógica local: " + e.message)
                     return
                 }
                 setCurrentFen(data.new_fen)
                 setPgn(game.current.pgn())
                 setLastMove({ from: move.from, to: move.to })
-                setStatus(t("retransmision.status.move", { move: move.san }))
+                setStatus(`Movimiento: ${move.san}`)
                 addLog(`${move.san} · ${move.type} · ${(data.confidence_avg * 100).toFixed(0)}%`)
 
                 // Badge especial
@@ -234,7 +232,7 @@ export default function RetransmisionPage() {
             } else {
                 missCountRef.current++
                 if (missCountRef.current >= MISS_THRESHOLD) {
-                    setStatus(t("retransmision.status.uncertainPosition"))
+                    setStatus("Posición incierta — confirma manualmente")
                 }
             }
         } catch (err) {
@@ -305,7 +303,7 @@ export default function RetransmisionPage() {
     }
 
     const finalizeGame = async () => {
-        if (!confirm(t("retransmision.confirmFinalize"))) return
+        if (!confirm("¿Deseas finalizar la retransmisión y guardar la partida?")) return
         
         try {
             await authFetch(`/retransmision/${retransmisionId}`, {
@@ -316,17 +314,17 @@ export default function RetransmisionPage() {
             await authFetch('/partidas', {
                 method: 'POST',
                 body: JSON.stringify({
-                    blancas: t("retransmision.defaultNames.local"),
-                    negras: t("retransmision.defaultNames.opponent"),
+                    blancas: "Jugador Local",
+                    negras: "Oponente",
                     pgn: game.current.pgn(),
                     tipo: "PR"
                 })
             })
 
-            addLog(t("retransmision.logs.gameSaved"))
+            addLog("Partida guardada con éxito")
             setTimeout(() => navigate('/games'), 2000)
         } catch (err) {
-            addLog(t("retransmision.logs.saveError"))
+            addLog("Error al guardar")
         }
     }
 
@@ -364,12 +362,12 @@ export default function RetransmisionPage() {
                                 isCalibrated ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
                             }`}>
                                 {isCalibrated ? <CheckCircle2 size={12}/> : <AlertCircle size={12}/>}
-                                {isCalibrated ? t("retransmision.badges.calibrated") : t("retransmision.badges.uncalibrated")}
+                                {isCalibrated ? "Calibrado" : "Sin calibrar"}
                             </span>
                             {isAutoMode && (
                                 <span className="px-3 py-1 bg-cr-primary/40 text-blue-100 rounded-full text-xs font-medium backdrop-blur-md border border-cr-primary/30 animate-pulse flex items-center gap-1.5">
                                     <div className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
-                                    {t("retransmision.badges.live")}
+                                    En vivo
                                 </span>
                             )}
                         </div>
@@ -394,18 +392,18 @@ export default function RetransmisionPage() {
                     <div className="mt-6 flex flex-wrap items-center gap-4 bg-cr-surface p-5 rounded-2xl border border-cr-border shadow-sm">
                         {!isCamActive ? (
                             <Button onClick={startCamera} variant="primary" className="flex items-center gap-2">
-                                <Camera size={18} /> {t("retransmision.buttons.startCamera")}
+                                <Camera size={18} /> Iniciar cámara
                             </Button>
                         ) : (
                             <Button onClick={calibrar} variant="secondary" className="flex items-center gap-2">
-                                <Settings size={18} /> {t("retransmision.buttons.calibrate")}
+                                <Settings size={18} /> Calibrar tablero
                             </Button>
                         )}
 
                         <div className="h-8 w-px bg-cr-border hidden sm:block" />
 
                         <div className="flex items-center gap-3 ml-auto">
-                            <span className="text-sm font-medium text-cr-muted">{t("retransmision.buttons.recognition")}</span>
+                            <span className="text-sm font-medium text-cr-muted">Reconocimiento</span>
                             <button 
                                 onClick={() => isCalibrated && setIsAutoMode(!isAutoMode)}
                                 disabled={!isCalibrated}
@@ -448,7 +446,7 @@ export default function RetransmisionPage() {
                     <div className="bg-cr-surface rounded-2xl border border-cr-border shadow-sm flex flex-col h-64">
                         <div className="p-4 border-b border-cr-border flex items-center gap-2">
                             <History size={16} className="text-cr-primary"/>
-                            <span className="font-bold text-sm uppercase tracking-wider">{t("retransmision.buttons.history")}</span>
+                            <span className="font-bold text-sm uppercase tracking-wider">Historial</span>
                         </div>
                         <div className="p-4 overflow-y-auto flex-1 font-figurine text-lg leading-relaxed bg-cr-surface2">
                             <div className="flex flex-wrap gap-x-6 gap-y-2">
@@ -464,7 +462,7 @@ export default function RetransmisionPage() {
 
                     {/* Logs técnicos */}
                     <div className="bg-cr-surface2 p-4 rounded-xl border border-cr-border font-mono text-[10px] h-32 overflow-hidden">
-                        {logs.length === 0 && <span className="text-cr-muted">{t("retransmision.emptyLog")}</span>}
+                        {logs.length === 0 && <span className="text-cr-muted">Esperando actividad...</span>}
                         {logs.map((log, i) => (
                             <div key={i} className="mb-1">
                                 <span className="text-cr-muted mr-2">[{log.time}]</span>
@@ -476,19 +474,19 @@ export default function RetransmisionPage() {
                     {/* Acciones finales */}
                     <div className="flex gap-3">
                         <Button onClick={() => setShowShareModal(true)} variant="ghost" className="flex-1 border border-cr-border">
-                            <Share2 size={18} /> {t("retransmision.buttons.share")}
+                            <Share2 size={18} /> Compartir
                         </Button>
                         <Button onClick={finalizeGame} variant="primary" className="flex-1">
-                            <Save size={18} /> {t("retransmision.buttons.finalize")}
+                            <Save size={18} /> Finalizar
                         </Button>
                     </div>
                 </div>
             </div>
 
             {/* Modal de Compartir */}
-            <Modal isOpen={showShareModal} onClose={() => setShowShareModal(false)} title={t("retransmision.modal.shareTitle")}>
+            <Modal isOpen={showShareModal} onClose={() => setShowShareModal(false)} title="Compartir Retransmisión">
                 <div className="p-6">
-                    <p className="text-cr-muted text-sm mb-4">{t("retransmision.modal.shareText")}</p>
+                    <p className="text-cr-muted text-sm mb-4">Envía este enlace a los espectadores para que sigan la partida en vivo:</p>
                     <div className="flex gap-2 p-3 bg-cr-surface2 rounded-lg border border-cr-border">
                         <input 
                             type="text" 
@@ -500,7 +498,7 @@ export default function RetransmisionPage() {
                             {copied ? <Check size={18} /> : <Copy size={18} />}
                         </button>
                     </div>
-                    {copied && <p className="text-green-600 text-[10px] mt-2 font-medium">{t("retransmision.modal.copied")}</p>}
+                    {copied && <p className="text-green-600 text-[10px] mt-2 font-medium">¡Enlace copiado!</p>}
                 </div>
             </Modal>
         </div>

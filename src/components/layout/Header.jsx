@@ -1,10 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
+// Header global
 export default function Header() {
-    const { t } = useTranslation()
     const { logout } = useAuth()
     const navigate = useNavigate()
 
@@ -25,12 +24,12 @@ export default function Header() {
             <button
                 onClick={handleLogout}
                 className="flex flex-col items-center gap-1 group text-cr-muted hover:text-rose-500 transition-colors cursor-pointer shrink-0 mt-6"
-                title={t('header.logoutTitle')}
+                title="Salir de la aplicación"
             >
                 <div className="p-3 rounded-2xl bg-cr-bg group-hover:bg-rose-50 transition-colors shadow-sm">
                     <LogOut size={24} />
                 </div>
-                <span className="text-[10px] uppercase font-black tracking-widest mt-1">{t('header.logout')}</span>
+                <span className="text-[10px] uppercase font-black tracking-widest mt-1">Salir</span>
             </button>
         </header>
     )

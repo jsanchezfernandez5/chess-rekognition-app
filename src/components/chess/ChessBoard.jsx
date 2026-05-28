@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
 import { Chessboard } from 'react-chessboard'
 import { Chess } from 'chess.js'
 import Modal from '@/components/ui/Modal'
@@ -10,7 +9,6 @@ export default function ChessBoard({
     onChange,
     actionRef
 }) {
-    const { t } = useTranslation()
     // Referencia al motor de juego (chess.js) para que no se pierda entre renders
     const game = useRef(new Chess(initialFen === 'start' ? undefined : initialFen))
 
@@ -144,15 +142,15 @@ export default function ChessBoard({
             <Modal
                 isOpen={showPromotionModal}
                 onClose={() => { setShowPromotionModal(false); setMovePendingPromotion(null) }}
-                title={t('chessBoard.promotionTitle')}
+                title="¿Qué pieza prefieres?"
                 maxWidth="max-w-xs"
             >
                 <div className="grid grid-cols-2 gap-3 p-2">
                     {[
-                        { type: 'q', label: t('chessBoard.pieces.queen'), icon: '♕' },
-                        { type: 'r', label: t('chessBoard.pieces.rook'), icon: '♖' },
-                        { type: 'b', label: t('chessBoard.pieces.bishop'), icon: '♗' },
-                        { type: 'n', label: t('chessBoard.pieces.knight'), icon: '♘' }
+                        { type: 'q', label: 'Dama', icon: '♕' },
+                        { type: 'r', label: 'Torre', icon: '♖' },
+                        { type: 'b', label: 'Alfil', icon: '♗' },
+                        { type: 'n', label: 'Caballo', icon: '♘' }
                     ].map((p) => (
                         <button
                             key={p.type}

@@ -1,9 +1,9 @@
 import { createContext, useState, useEffect, useCallback, useRef } from 'react'
-import i18n from '@/i18n'
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext(null)
 
+// URL base de la API. Toma el valor de las variables de entorno o usa la de producción por defecto.
 const API = import.meta.env.VITE_API_URL || 'https://chess-rekognition-api-production.up.railway.app'
 
 /**
@@ -115,14 +115,14 @@ export function AuthProvider({ children }) {
             if (!res.ok) {
                 const errorData = await res.json().catch(() => ({}))
                 const rawDetail = errorData.detail
-                let message = i18n.t('auth.errors.incorrectCredentials')
+                let message = 'Credenciales incorrectas'
 
                 if (rawDetail === 'Not Found' || res.status === 404) {
-                    message = i18n.t('auth.errors.serviceNotFound')
+                    message = 'Servicio no encontrado. Verifica la conexión.'
                 } else if (typeof rawDetail === 'string') {
                     message = rawDetail
                 } else if (Array.isArray(rawDetail)) {
-                    message = i18n.t('auth.errors.invalidData') + rawDetail.map(e => `${e.loc?.at(-1)}: ${e.msg}`).join(', ')
+                    message = 'Datos inválidos: ' + rawDetail.map(e => `${e.loc?.at(-1)}: ${e.msg}`).join(', ')
                 }
 
                 throw new Error(message)
@@ -143,7 +143,7 @@ export function AuthProvider({ children }) {
             setUser(me)
         } catch (error) {
             if (error instanceof TypeError) {
-                throw new Error(i18n.t('auth.errors.serverOffline'))
+                throw new Error('Servidor fuera de línea, intenta de nuevo más tarde.')
             }
             throw error
         }
@@ -166,16 +166,16 @@ export function AuthProvider({ children }) {
             if (!res.ok) {
                 const errorData = await res.json().catch(() => ({}))
                 const rawDetail = errorData.detail
-                let message = i18n.t('auth.errors.registerError')
+                let message = 'Error en el registro'
 
                 if (rawDetail === 'Not Found' || res.status === 404) {
-                    message = i18n.t('auth.errors.registerRouteNotFound')
+                    message = 'Ruta de registro no encontrada en el servidor'
                 } else if (res.status === 409) {
-                    message = i18n.t('auth.errors.userOrEmailInUse')
+                    message = 'El usuario o el email ya están en uso'
                 } else if (typeof rawDetail === 'string') {
                     message = rawDetail
                 } else if (Array.isArray(rawDetail)) {
-                    message = i18n.t('auth.errors.validationFailed') + rawDetail.map(e => `${e.loc?.at(-1)}: ${e.msg}`).join(', ')
+                    message = 'Validación fallida: ' + rawDetail.map(e => `${e.loc?.at(-1)}: ${e.msg}`).join(', ')
                 }
 
                 throw new Error(message)
@@ -183,7 +183,7 @@ export function AuthProvider({ children }) {
             return await res.json()
         } catch (error) {
             if (error instanceof TypeError) {
-                throw new Error(i18n.t('auth.errors.serverOffline'))
+                throw new Error('Servidor fuera de línea, intenta de nuevo más tarde.')
             }
             throw error
         }
@@ -245,7 +245,7 @@ export function AuthProvider({ children }) {
             // Si la renovación falló o el reintento también devolvió 401
             if (res.status === 401) {
                 logout()
-                throw new Error(i18n.t('auth.errors.sessionExpired'))
+                throw new Error('Sesión expirada')
             }
         }
 

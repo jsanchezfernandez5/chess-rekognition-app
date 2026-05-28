@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
 import { Chessboard } from 'react-chessboard'
 import { Chess } from 'chess.js'
 import { ChevronLeft, ChevronRight, Play, Pause, Download } from 'lucide-react'
 import { downloadPgn } from '@/utils/pgnUtils'
 
+// Visor PGN
 export default function ChessViewer({ partida }) {
-    const { t } = useTranslation()
     const [fen, setFen] = useState('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
     const [history, setHistory] = useState([])
     const [currentMoveIdx, setCurrentMoveIdx] = useState(-1)
@@ -136,7 +135,7 @@ export default function ChessViewer({ partida }) {
             <div className="w-full">
                 <div className="flex items-center justify-between mb-2">
                     <label className="text-[12px] uppercase font-bold text-cr-muted tracking-widest pl-2">
-                        {t('chessViewer.pgnLabel')}
+                        Notación PGN
                     </label>
                     <button
                         onClick={() => downloadPgn(partida)}
@@ -162,7 +161,7 @@ export default function ChessViewer({ partida }) {
                                 <span>{m.san}</span>
                             </div>
                         )) : (
-                            <span className="font-sans text-sm text-cr-muted italic">{t('chessViewer.emptyState')}</span>
+                            <span className="font-sans text-sm text-cr-muted italic">Partida sin jugadas</span>
                         )}
                     </div>
                 </div>
