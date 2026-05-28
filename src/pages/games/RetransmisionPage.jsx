@@ -17,7 +17,7 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import { parsePgn } from '@/utils/pgnUtils'
 import Button from '@/components/ui/Button'
-import { Modal } from '@/components/ui/Modal'
+import Modal from '@/components/ui/Modal'
 
 export default function RetransmisionPage() {
     const { authFetch } = useAuth()
