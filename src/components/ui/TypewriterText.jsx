@@ -1,21 +1,17 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 
-// Frases que rotan en el lado de la imagen del login/registro
-const DEFAULT_PHRASES = [
-    'Capture every move.',
-    'Play on, always.',
-    'Tu partida, siempre contigo.',
-    'Reconoce. Guarda. Retransmite.',
-]
-
-// Texto animado estilo máquina de escribir
 export default function TypewriterText({
-    phrases = DEFAULT_PHRASES,
-    typingSpeed = 60,      // ms por carácter al escribir
-    deletingSpeed = 35,    // ms por carácter al borrar
-    pauseAfter = 2200,     // ms de pausa con texto completo
+    phrases: externalPhrases,
+    typingSpeed = 60,
+    deletingSpeed = 35,
+    pauseAfter = 2200,
     className = '',
 }) {
+    const { t } = useTranslation()
+    const defaultPhrases = t('typewriter.phrases', { returnObjects: true })
+    const phrases = externalPhrases || defaultPhrases
+
     const [displayed, setDisplayed] = useState('')
     const [phraseIdx, setPhraseIdx] = useState(0)
     const [isDeleting, setIsDeleting] = useState(false)
@@ -25,39 +21,37 @@ export default function TypewriterText({
         const current = phrases[phraseIdx]
 
         if (isPaused) {
-            const t = setTimeout(() => {
+            const timer = setTimeout(() => {
                 setIsPaused(false)
                 setIsDeleting(true)
             }, pauseAfter)
-            return () => clearTimeout(t)
+            return () => clearTimeout(timer)
         }
 
         if (!isDeleting) {
-            // Escribiendo
             if (displayed.length < current.length) {
-                const t = setTimeout(
+                const timer = setTimeout(
                     () => setDisplayed(current.slice(0, displayed.length + 1)),
                     typingSpeed
                 )
-                return () => clearTimeout(t)
+                return () => clearTimeout(timer)
             } else {
-                const t = setTimeout(() => setIsPaused(true), 0)
-                return () => clearTimeout(t)
+                const timer = setTimeout(() => setIsPaused(true), 0)
+                return () => clearTimeout(timer)
             }
         } else {
-            // Borrando
             if (displayed.length > 0) {
-                const t = setTimeout(
+                const timer = setTimeout(
                     () => setDisplayed(current.slice(0, displayed.length - 1)),
                     deletingSpeed
                 )
-                return () => clearTimeout(t)
+                return () => clearTimeout(timer)
             } else {
-                const t = setTimeout(() => {
+                const timer = setTimeout(() => {
                     setIsDeleting(false)
                     setPhraseIdx(i => (i + 1) % phrases.length)
                 }, 0)
-                return () => clearTimeout(t)
+                return () => clearTimeout(timer)
             }
         }
     }, [displayed, isDeleting, isPaused, phraseIdx, phrases, typingSpeed, deletingSpeed, pauseAfter])
@@ -65,7 +59,6 @@ export default function TypewriterText({
     return (
         <span className={className}>
             {displayed}
-            {/* Cursor parpadeante */}
             <span className="inline-block w-[2px] h-[1.1em] bg-cr-primary ml-0.5 align-middle animate-blink" />
         </span>
     )

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Flag, Download, ChevronDown, Swords, HelpCircle, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import Button from '@/components/ui/Button'
@@ -6,19 +7,18 @@ import ChessBoard from '@/components/chess/ChessBoard'
 import Modal from '@/components/ui/Modal'
 import Header from '@/components/layout/Header'
 
-// Componentes de UI extraídos fuera para evitar remontajes innecesarios
-const ConfigForm = ({ playerColor, setPlayerColor, elo, setElo, handleStartGame, eloLevels }) => (
+const ConfigForm = ({ t, playerColor, setPlayerColor, elo, setElo, handleStartGame, eloLevels }) => (
     <div className="w-full max-w-[500px] mx-auto flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="mb-10 text-center">
             <h1 className="font-display text-2xl font-black text-cr-text tracking-tight">
-                Configura el nivel
+                {t('stockfish.configTitle')}
             </h1>
         </div>
 
         <div className="space-y-6">
             <div className="space-y-2">
                 <label className="block text-[11px] uppercase font-black text-cr-muted mb-2 tracking-widest pl-1">
-                    Elige tu color
+                    {t('stockfish.colorLabel')}
                 </label>
                 <div className="relative group">
                     <select
@@ -26,8 +26,8 @@ const ConfigForm = ({ playerColor, setPlayerColor, elo, setElo, handleStartGame,
                         onChange={(e) => setPlayerColor(e.target.value)}
                         className="w-full h-14 appearance-none bg-cr-bg border-2 border-transparent focus:border-cr-primary/20 rounded-2xl px-6 text-base font-bold text-cr-text transition-all outline-hidden cursor-pointer"
                     >
-                        <option value="w">Jugar con Blancas</option>
-                        <option value="b">Jugar con Negras</option>
+                        <option value="w">{t('stockfish.withWhite')}</option>
+                        <option value="b">{t('stockfish.withBlack')}</option>
                     </select>
                     <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-cr-muted pointer-events-none group-hover:text-cr-primary transition-colors" size={18} />
                 </div>
@@ -35,7 +35,7 @@ const ConfigForm = ({ playerColor, setPlayerColor, elo, setElo, handleStartGame,
 
             <div className="space-y-2">
                 <label className="block text-[11px] uppercase font-black text-cr-muted mb-2 tracking-widest pl-1">
-                    Nivel de ELO
+                    {t('stockfish.eloLabel')}
                 </label>
                 <div className="relative group">
                     <select
@@ -58,13 +58,14 @@ const ConfigForm = ({ playerColor, setPlayerColor, elo, setElo, handleStartGame,
             className="w-full h-14 text-base font-black uppercase tracking-[0.2em] shadow-xl shadow-cr-primary/20 hover:shadow-cr-primary/40 transition-shadow mt-4"
         >
             <Swords size={20} className="mr-3" />
-            Jugar contra StockFish
+            {t('stockfish.startButton')}
         </Button>
     </div>
 )
 
 // Renderiza el área de juego
 const GameArea = ({
+    t,
     status,
     isGameOver,
     isEngineThinking,
@@ -89,7 +90,7 @@ const GameArea = ({
                     </span>
                 </div>
                 <div className="text-[10px] font-black text-cr-primary bg-cr-primary-light px-3 py-1 rounded-lg uppercase tracking-widest">
-                    Nivel ELO: {elo}
+                    {t('stockfish.eloDisplay')} {elo}
                 </div>
             </div>
 
@@ -110,17 +111,17 @@ const GameArea = ({
                         className="h-14 uppercase font-black tracking-[0.2em] text-xs flex items-center justify-center gap-3 px-10 shadow-xl shadow-cr-primary/20"
                     >
                         <Flag size={18} />
-                        Abandonar partida
+                        {t('stockfish.abandon')}
                     </Button>
                 )}
             </div>
 
             <div className="w-full space-y-3 mt-4">
                 <div className="flex items-center justify-between px-1">
-                    <label className="text-[12px] uppercase font-black text-cr-muted tracking-widest pl-2">Notación PGN</label>
+                    <label className="text-[12px] uppercase font-black text-cr-muted tracking-widest pl-2">{t('stockfish.pgnLabel')}</label>
                     <button
                         className="p-2 text-cr-text hover:text-cr-primary transition-all cursor-pointer"
-                        title="Descargar PGN"
+                        title={t('stockfish.downloadPgnTitle')}
                         onClick={() => handleDownloadPGN()}
                     >
                         <Download size={30} />
@@ -143,7 +144,7 @@ const GameArea = ({
                                 <span className="text-cr-text">{m.san}</span>
                             </div>
                         )) : (
-                            <span className="font-sans text-sm text-cr-muted italic">La partida aún no ha comenzado...</span>
+                            <span className="font-sans text-sm text-cr-muted italic">{t('stockfish.emptyState')}</span>
                         )}
                     </div>
                 </div>
@@ -156,10 +157,10 @@ const GameArea = ({
  * Página principal de Stockfish
  */
 export default function StockfishPage() {
+    const { t } = useTranslation()
     const { user, authFetch } = useAuth()
     const boardRef = useRef(null)
 
-    // Nombre completo del usuario para los metadatos del PGN
     const userFullName = user ? `${user.nombre || user.username} ${user.apellidos || ''}`.trim() : 'Jugador'
 
     // --- ESTADO DEL JUEGO ---
@@ -183,8 +184,8 @@ export default function StockfishPage() {
         message: '',
         onConfirm: null,
         onClose: null,
-        cancelLabel: 'No, gracias',
-        confirmLabel: 'Confirmar',
+        cancelLabel: t('stockfish.modal.noThanks'),
+        confirmLabel: t('stockfish.confirmButton'),
         type: 'confirm' // 'confirm' | 'info'
     })
 
@@ -194,13 +195,13 @@ export default function StockfishPage() {
 
     // --- OPCIONES DE CONFIGURACIÓN ---
     const ELO_LEVELS = [
-        { label: 'Principiante (1350)', value: 1350 },
-        { label: 'Jugador ocasional (1500)', value: 1500 },
-        { label: 'Jugador de club (1800)', value: 1800 },
-        { label: 'Jugador avanzado (2100)', value: 2100 },
-        { label: 'Maestro (2400)', value: 2400 },
-        { label: 'Gran Maestro (2800)', value: 2800 },
-        { label: 'Super GM (3100)', value: 3100 },
+        { label: t('stockfish.eloLevels.beginner'), value: 1350 },
+        { label: t('stockfish.eloLevels.occasional'), value: 1500 },
+        { label: t('stockfish.eloLevels.club'), value: 1800 },
+        { label: t('stockfish.eloLevels.advanced'), value: 2100 },
+        { label: t('stockfish.eloLevels.master'), value: 2400 },
+        { label: t('stockfish.eloLevels.grandmaster'), value: 2800 },
+        { label: t('stockfish.eloLevels.superGm'), value: 3100 },
     ]
 
     // Control del tablero
@@ -269,21 +270,21 @@ export default function StockfishPage() {
     const handleAbandonar = () => {
         setModal({
             isOpen: true,
-            title: 'Abandonar partida',
-            message: '¿Estás seguro de que quieres darte por vencido y finalizar este duelo?',
+            title: t('stockfish.modal.abandonTitle'),
+            message: t('stockfish.modal.abandonMessage'),
             type: 'confirm',
-            confirmLabel: 'Sí, abandonar',
-            cancelLabel: 'No, esperar',
+            confirmLabel: t('stockfish.modal.confirmAbandon'),
+            cancelLabel: t('stockfish.modal.cancelAbandon'),
             onConfirm: () => {
                 const resultAtAbandon = playerColor === 'w' ? '0-1' : '1-0'
                 if (moveHistory.length > 0) {
                     setModal({
                         isOpen: true,
-                        title: 'Partida finalizada',
-                        message: 'Has abandonado el duelo. ¿Deseas descargar el PGN antes de salir?',
+                        title: t('stockfish.modal.finishedTitle'),
+                        message: t('stockfish.modal.finishedMessage'),
                         type: 'confirm',
-                        confirmLabel: 'Descargar PGN',
-                        cancelLabel: 'No, gracias',
+                        confirmLabel: t('stockfish.modal.downloadPgn'),
+                        cancelLabel: t('stockfish.modal.noThanks'),
                         onConfirm: () => {
                             handleDownloadPGN(resultAtAbandon)
                             confirmAbandon()
@@ -315,11 +316,11 @@ export default function StockfishPage() {
     const isPlayerTurn = status === 'playing' && currentTurn === playerColor
     const indicatorColor = status !== 'playing' ? 'bg-cr-border' : (!isPlayerTurn && !isGameOver ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500')
 
-    let statusText = 'Esperando duelo...'
+    let statusText = t('stockfish.status.waiting')
     if (status === 'playing') {
-        if (isGameOver) statusText = 'Partida Finalizada'
-        else if (isPlayerTurn) statusText = 'Tu turno'
-        else statusText = 'Stockfish pensando...'
+        if (isGameOver) statusText = t('stockfish.status.finished')
+        else if (isPlayerTurn) statusText = t('stockfish.status.yourTurn')
+        else statusText = t('stockfish.status.thinking')
     }
 
     // Descargar PGN
@@ -358,6 +359,7 @@ export default function StockfishPage() {
                 <div className={`w-full md:w-1/2 flex flex-col p-6 md:p-10 lg:p-12 border-r border-cr-border/40 ${view !== 'config' ? 'hidden md:flex' : 'flex'}`}>
                     <div className="flex-1 flex items-start justify-center w-full pt-10">
                         <ConfigForm
+                            t={t}
                             playerColor={playerColor}
                             setPlayerColor={setPlayerColor}
                             elo={elo}
@@ -371,6 +373,7 @@ export default function StockfishPage() {
                 <div className={`w-full md:w-1/2 flex flex-col bg-white p-6 md:p-10 lg:p-12 overflow-y-auto ${view !== 'play' ? 'hidden md:flex' : 'flex'}`}>
                     <div className="flex-1 flex items-center justify-center w-full">
                         <GameArea
+                            t={t}
                             status={status}
                             isGameOver={isGameOver}
                             isEngineThinking={isEngineThinking}
@@ -391,11 +394,11 @@ export default function StockfishPage() {
                 <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-cr-border flex items-stretch z-50">
                     <button onClick={() => setView('config')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${view === 'config' ? 'text-cr-primary' : 'text-cr-muted'}`}>
                         <div className={`w-8 h-1 rounded-full mb-1 transition-all ${view === 'config' ? 'bg-cr-primary' : 'bg-transparent'}`} />
-                        <span className="text-[10px] uppercase font-black tracking-widest">Ajustes</span>
+                        <span className="text-[10px] uppercase font-black tracking-widest">{t('stockfish.tabConfig')}</span>
                     </button>
                     <button onClick={() => setView('play')} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${view === 'play' ? 'text-cr-primary' : 'text-cr-muted'}`}>
                         <div className={`w-8 h-1 rounded-full mb-1 transition-all ${view === 'play' ? 'bg-cr-primary' : 'bg-transparent'}`} />
-                        <span className="text-[10px] uppercase font-black tracking-widest">Tablero</span>
+                        <span className="text-[10px] uppercase font-black tracking-widest">{t('stockfish.tabBoard')}</span>
                     </button>
                 </div>
             </div>

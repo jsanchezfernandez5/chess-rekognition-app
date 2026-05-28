@@ -1,11 +1,12 @@
 import { useNavigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import Button from '@/components/ui/Button'
 import TypewriterText from '@/components/ui/TypewriterText'
 import { LogOut, PlusCircle, Swords, Radio, LayoutList } from 'lucide-react'
 
-// Página principal del panel de control (Dashboard).
 export default function DashboardPage() {
+    const { t } = useTranslation()
     const { user, logout } = useAuth()
     const navigate = useNavigate()
 
@@ -21,22 +22,22 @@ export default function DashboardPage() {
     // Definición de acciones según el sketch, con los nombres solicitados
     const ACCIONES = [
         {
-            label: 'Introducir partidas',
+            label: t('dashboard.actions.input'),
             path: '/games/input',
             icon: <PlusCircle size={20} />
         },
         {
-            label: 'Juega vs StockFish',
+            label: t('dashboard.actions.stockfish'),
             path: '/stockfish',
             icon: <Swords size={20} />
         },
         {
-            label: 'Partida retransmitida',
+            label: t('dashboard.actions.live'),
             path: '/games/live',
             icon: <Radio size={20} />
         },
         {
-            label: 'Listado de partidas',
+            label: t('dashboard.actions.list'),
             path: '/games',
             icon: <LayoutList size={20} />
         },
@@ -60,19 +61,19 @@ export default function DashboardPage() {
                         <button
                             onClick={handleLogout}
                             className="flex flex-col items-center gap-1 group text-cr-muted hover:text-rose-500 transition-colors cursor-pointer shrink-0"
-                            title="Cerrar sesión"
+                            title={t('dashboard.logoutTitle')}
                         >
                             <div className="p-3 rounded-2xl bg-cr-bg group-hover:bg-rose-50 transition-colors shadow-sm">
                                 <LogOut size={24} />
                             </div>
-                            <span className="text-[10px] uppercase font-black tracking-widest mt-1">Salir</span>
+                            <span className="text-[10px] uppercase font-black tracking-widest mt-1">{t('dashboard.logout')}</span>
                         </button>
                     </div>
 
                     {/* Saludo */}
                     <div className="text-center mb-12">
                         <h1 className="font-display text-2xl md:text-2xl font-black text-cr-text whitespace-nowrap overflow-hidden text-ellipsis">
-                            Hola, <span className="text-cr-primary capitalize">{nombre}</span>
+                            {t('dashboard.title')} <span className="text-cr-primary capitalize">{nombre}</span>
                         </h1>
                     </div>
 

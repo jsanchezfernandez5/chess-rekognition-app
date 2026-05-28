@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import AuthLayout from '@/components/layout/AuthLayout'
 import InputText from '@/components/ui/InputText'
 import InputPassword from '@/components/ui/InputPassword'
 import Button from '@/components/ui/Button'
 import { useAuth } from '@/hooks/useAuth'
 
-// Página de inicio de sesión de la aplicación.
 export default function LoginPage() {
+    const { t } = useTranslation()
     const { login } = useAuth()
     const navigate = useNavigate()
 
@@ -33,7 +34,7 @@ export default function LoginPage() {
 
         // Validación básica: asegura que ambos campos contengan texto
         if (!form.username || !form.password) {
-            setError('Completa todos los campos.')
+            setError(t('auth.login.validationError'))
             return
         }
 
@@ -60,7 +61,7 @@ export default function LoginPage() {
                 <InputText
                     id="username"
                     name="username"
-                    label="Usuario *"
+                    label={t('auth.login.usernameLabel')}
                     placeholder="chess_test01"
                     value={form.username}
                     onChange={handleChange}
@@ -71,7 +72,7 @@ export default function LoginPage() {
                 <InputPassword
                     id="password"
                     name="password"
-                    label="Contraseña *"
+                    label={t('auth.login.passwordLabel')}
                     value={form.password}
                     onChange={handleChange}
                     disabled={loading}
@@ -85,15 +86,15 @@ export default function LoginPage() {
                 )}
 
                 <Button type="submit" size="lg" loading={loading} className="mt-1">
-                    Aceptar
+                    {t('auth.login.submit')}
                 </Button>
             </form>
 
             {/* Enlace al registro */}
             <p className="text-sm text-center text-cr-muted mt-5">
-                ¿No tienes cuenta?{' '}
+                {t('auth.login.noAccount')}{' '}
                 <Link to="/register" className="text-cr-primary font-medium hover:underline">
-                    Regístrate
+                    {t('auth.login.registerLink')}
                 </Link>
             </p>
         </AuthLayout>

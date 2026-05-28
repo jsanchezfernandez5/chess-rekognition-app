@@ -1,17 +1,8 @@
-/**
- * Utilidades para trabajar con formato PGN (Portable Game Notation).
- */
+import i18n from '@/i18n'
 
-/**
- * Genera una cadena PGN completa incluyendo las cabeceras obligatorias y opcionales.
- * 
- * @param {Object} partida - Objeto con los datos de la partida (del backend).
- * @returns {string} El PGN completo con cabeceras [Tag "Value"] y movimientos.
- */
 export function generateFullPgn(partida) {
     if (!partida) return '';
 
-    // Formatear la fecha a YYYY.MM.DD como indica la especificación PGN
     let fechaPgn = '????.??.??';
     if (partida.fecha) {
         try {
@@ -25,24 +16,22 @@ export function generateFullPgn(partida) {
         }
     }
 
-    // Cabeceras estándar (The Seven Tag Roster)
     const headers = [
-        `[Event "${partida.evento || 'Partida de Ajedrez'}"]`,
+        `[Event "${partida.evento || i18n.t('pgnUtils.defaultEvent')}"]`,
         `[Site "${partida.lugar || '?'}"]`,
         `[Date "${fechaPgn}"]`,
         `[Round "${partida.ronda || '?'}"]`,
-        `[White "${partida.blancas || 'Blancas'}"]`,
-        `[Black "${partida.negras || 'Negras'}"]`,
+        `[White "${partida.blancas || i18n.t('pgnUtils.defaultWhite')}"]`,
+        `[Black "${partida.negras || i18n.t('pgnUtils.defaultBlack')}"]`,
         `[Result "${partida.resultado || '*'}"]`,
     ];
 
-    // Cabeceras extra si existen
     if (partida.tablero) {
         headers.push(`[Board "${partida.tablero}"]`);
     }
 
     if (partida.tipo_partida) {
-        const tipoStr = partida.tipo_partida === 'PI' ? 'Introducida' : 'Retransmisión';
+        const tipoStr = partida.tipo_partida === 'PI' ? i18n.t('pgnUtils.typeIntroduced') : i18n.t('pgnUtils.typeRetransmision');
         headers.push(`[Annotator "Partida ${tipoStr}"]`);
     }
 

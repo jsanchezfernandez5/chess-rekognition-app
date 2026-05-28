@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Loader2, Inbox } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import ChessViewer from '@/components/chess/ChessViewer'
 import Header from '@/components/layout/Header'
 
 export default function ListadoPartidasPage() {
+    const { t } = useTranslation()
     const { authFetch } = useAuth()
     const [partidas, setPartidas] = useState([])
     const [loading, setLoading] = useState(true)
@@ -65,7 +67,7 @@ export default function ListadoPartidasPage() {
                 <div className={`w-full md:w-1/2 flex flex-col p-6 md:p-10 lg:p-12 border-r border-cr-border/40 ${activeTab !== 'list' ? 'hidden md:flex' : 'flex'}`}>
                     <div className="mb-10 text-center">
                         <h1 className="font-display text-2xl font-black text-cr-text tracking-tight">
-                            Listado de partidas
+                            {t('listadoPartidas.title')}
                         </h1>
                     </div>
 
@@ -73,7 +75,7 @@ export default function ListadoPartidasPage() {
                         {partidas.length === 0 ? (
                             <div className="text-center py-20 opacity-30">
                                 <Inbox className="mx-auto mb-4" size={48} />
-                                <p className="font-bold">Historial vacío</p>
+                                <p className="font-bold">{t('listadoPartidas.empty')}</p>
                             </div>
                         ) : (
                             partidas.map((p, i) => (
@@ -90,7 +92,7 @@ export default function ListadoPartidasPage() {
 
                                     <div className="flex-1 min-w-0">
                                         <p className="text-[11px] font-black uppercase tracking-widest text-cr-muted opacity-50 mb-1">
-                                            {p.tipo_partida === 'PR' ? 'Partida Retransmitida' : 'Partida Introducida'}
+                                            {p.tipo_partida === 'PR' ? t('listadoPartidas.typeRetransmitida') : t('listadoPartidas.typeIntroducida')}
                                         </p>
                                         <h3 className="font-bold text-cr-text text-lg leading-none truncate mb-2">
                                             {p.blancas} vs {p.negras}
@@ -112,7 +114,7 @@ export default function ListadoPartidasPage() {
                         {partidaSeleccionada && (
                             <div className="mb-8 text-center bg-cr-bg/50 p-6 rounded-[30px] border border-cr-border/40">
                                 <p className="text-[10px] uppercase font-black tracking-widest text-cr-muted mb-2 opacity-60">
-                                    {partidaSeleccionada.evento || 'Partida de Ajedrez'}
+                                    {partidaSeleccionada.evento || t('listadoPartidas.defaultEvent')}
                                 </p>
                                 <div className="flex items-center justify-center gap-4 text-cr-text">
                                     <span className="font-display text-xl font-bold">{partidaSeleccionada.blancas}</span>
@@ -120,7 +122,7 @@ export default function ListadoPartidasPage() {
                                     <span className="font-display text-xl font-bold">{partidaSeleccionada.negras}</span>
                                 </div>
                                 <div className="mt-2 text-sm font-bold text-cr-primary uppercase tracking-widest">
-                                    Resultado: {partidaSeleccionada.resultado}
+                                    {t('listadoPartidas.resultado')} {partidaSeleccionada.resultado}
                                 </div>
                                 <div className="mt-1 text-[11px] text-cr-muted font-bold opacity-70">
                                     {new Date(partidaSeleccionada.fecha).toLocaleDateString('es-ES')} {partidaSeleccionada.lugar ? `· ${partidaSeleccionada.lugar}` : ''}
@@ -139,14 +141,14 @@ export default function ListadoPartidasPage() {
                     className={`flex-1 flex flex-col items-center justify-center transition-colors ${activeTab === 'list' ? 'text-cr-primary' : 'text-cr-muted'}`}
                 >
                     <div className={`w-8 h-1 rounded-full mb-1 transition-all ${activeTab === 'list' ? 'bg-cr-primary' : 'bg-transparent'}`} />
-                    <span className="text-[10px] uppercase font-black tracking-widest">Listado</span>
+                    <span className="text-[10px] uppercase font-black tracking-widest">{t('listadoPartidas.tabList')}</span>
                 </button>
                 <button
                     onClick={() => setActiveTab('viewer')}
                     className={`flex-1 flex flex-col items-center justify-center transition-colors ${activeTab === 'viewer' ? 'text-cr-primary' : 'text-cr-muted'}`}
                 >
                     <div className={`w-8 h-1 rounded-full mb-1 transition-all ${activeTab === 'viewer' ? 'bg-cr-primary' : 'bg-transparent'}`} />
-                    <span className="text-[10px] uppercase font-black tracking-widest">Visor</span>
+                    <span className="text-[10px] uppercase font-black tracking-widest">{t('listadoPartidas.tabViewer')}</span>
                 </button>
             </div>
 
