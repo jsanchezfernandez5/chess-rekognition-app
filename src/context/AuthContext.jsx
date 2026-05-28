@@ -194,8 +194,9 @@ export function AuthProvider({ children }) {
     // automáticamente el Bearer token almacenado del usuario a endpoints privados.
     // También maneja la expiración global del token.
     const authFetch = useCallback(async (path, opts = {}) => {
+        const isFormData = opts.body instanceof FormData
         const commonHeaders = {
-            'Content-Type': 'application/json',
+            ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
             ...opts.headers,
         }
 
@@ -218,12 +219,15 @@ export function AuthProvider({ children }) {
                 })
 
                 if (refreshRes.ok) {
-                    const { access_token } = await refreshRes.json()
+                    const { access_token, refresh_token } = await refreshRes.json()
 
                     // Actualizamos localStorage, estado y el ref para el reintento inmediato
                     localStorage.setItem('cr_token', access_token)
+                    localStorage.setItem('cr_refresh_token', refresh_token)
                     setToken(access_token)
+                    setRefreshToken(refresh_token)
                     tokenRef.current = access_token
+                    refreshTokenRef.current = refresh_token
 
                     // Reintentamos la petición original una sola vez con el nuevo token
                     res = await fetch(`${API}${path}`, {

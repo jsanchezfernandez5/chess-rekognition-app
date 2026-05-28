@@ -60,6 +60,12 @@ export function generateFullPgn(partida) {
  * 
  * @param {Object} partida - Objeto con los datos de la partida.
  */
+export function parsePgn(pgnString) {
+    if (!pgnString) return []
+    const moves = pgnString.replace(/\[.*?\]/g, '').trim().split(/\d+\.\s+/).filter(Boolean)
+    return moves.map(m => m.trim())
+}
+
 export function downloadPgn(partida) {
     const fullPgn = generateFullPgn(partida);
     const blob = new Blob([fullPgn], { type: 'application/x-chess-pgn' });

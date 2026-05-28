@@ -15,6 +15,7 @@ import {
     Check
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { parsePgn } from '@/utils/pgnUtils'
 import Button from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 
@@ -53,7 +54,7 @@ export default function RetransmisionPage() {
         let active = true
         async function init() {
             try {
-                const res = await authFetch('/retransmision', {
+                const res = await authFetch('/retransmision/host', {
                     method: 'POST',
                     body: JSON.stringify({
                         blancas: "Jugador Local",
@@ -64,8 +65,8 @@ export default function RetransmisionPage() {
                 })
                 const data = await res.json()
                 if (active) {
-                    setRetransmisionId(data.id)
-                    retransmisionIdRef.current = data.id
+                    setRetransmisionId(data.id_retransmision)
+                    retransmisionIdRef.current = data.id_retransmision
                     setToken(data.token)
                     initWebSocket(data.token)
                 }
@@ -96,8 +97,10 @@ export default function RetransmisionPage() {
     }
 
     const initWebSocket = (token) => {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-        const wsUrl = `${protocol}//${window.location.host}/retransmision/ws/host/${token}`
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://chess-rekognition-api-production.up.railway.app'
+        const protocol = apiUrl.startsWith('https') ? 'wss:' : 'ws:'
+        const host = apiUrl.replace(/^https?:\/\//, '')
+        const wsUrl = `${protocol}//${host}/retransmision/ws/host/${token}`
         const ws = new WebSocket(wsUrl)
         
         ws.onopen = () => addLog("Canal de retransmisión abierto")
@@ -199,7 +202,12 @@ export default function RetransmisionPage() {
                 const move = data.move
                 
                 // Aplicar a la lógica local
-                game.current.move(move.uci)
+                try {
+                    game.current.move(move.uci)
+                } catch (e) {
+                    addLog("Movimiento inválido en la lógica local: " + e.message)
+                    return
+                }
                 setCurrentFen(data.new_fen)
                 setPgn(game.current.pgn())
                 setLastMove({ from: move.from, to: move.to })
@@ -325,13 +333,6 @@ export default function RetransmisionPage() {
         navigator.clipboard.writeText(url)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
-    }
-
-    // Helper para PGN
-    const parsePgn = (pgnString) => {
-        if (!pgnString) return []
-        const moves = pgnString.replace(/\[.*?\]/g, '').trim().split(/\d+\.\s+/).filter(Boolean)
-        return moves.map(m => m.trim())
     }
 
     return (
