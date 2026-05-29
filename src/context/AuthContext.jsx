@@ -1,10 +1,18 @@
+/**
+ * Contexto de Autenticación (AuthContext)
+ * 
+ * Este módulo define el contexto global de autenticación para la aplicación,
+ * proporcionando el estado del usuario, los tokens de acceso y refresco, y métodos
+ * para iniciar sesión, cerrar sesión, registrar nuevos usuarios y realizar peticiones
+ * autorizadas a la API.
+ */
 import { createContext, useState, useEffect, useCallback, useRef } from 'react'
-
-// eslint-disable-next-line react-refresh/only-export-components
-export const AuthContext = createContext(null)
 
 // URL base de la API. Toma el valor de las variables de entorno o usa la de producción por defecto.
 const API = import.meta.env.VITE_API_URL || 'https://chess-rekognition-api-production.up.railway.app'
+
+// Creación del contexto de autenticación, inicialmente con valor null para detectar usos fuera de proveedor.
+export const AuthContext = createContext(null)
 
 /**
  * Proveedor de Autenticación Principal.
@@ -44,9 +52,7 @@ export function AuthProvider({ children }) {
         setUser(null)
     }, [])
 
-    // Efecto de inicialización:
-    // Verifica si existe un token guardado e intenta rehidratar la sesión
-    // obteniendo los datos actualizados del usuario desde la API.
+    // Efecto de inicialización.
     useEffect(() => {
         if (!token) {
             // Si no hay token, terminamos la carga en el siguiente ciclo de eventos
@@ -97,8 +103,6 @@ export function AuthProvider({ children }) {
                 }
             })
             .finally(() => setLoading(false))
-
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [logout]) // Se ejecuta únicamente al montar la aplicación
 
     // Método para iniciar sesión en el sistema.

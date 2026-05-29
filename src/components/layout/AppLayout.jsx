@@ -1,9 +1,19 @@
+/**
+ * Componente de diseño principal para la aplicación, que incluye el header, el menú lateral y el espacio para el contenido de las páginas.
+ * Este layout se utiliza para las páginas que requieren autenticación y acceso al dashboard.
+ * 
+ * Estructura:
+ * - Header: Barra superior fija con el logo y el avatar del usuario.
+ * - Sidebar: Menú lateral con enlaces a las diferentes secciones del dashboard, visible en desktop y como drawer en móvil.
+ * - Main: Área principal donde se renderizan los contenidos de cada página.
+ */
+
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { LayoutDashboard, Edit3, Bot, Video, VideoOff, ClipboardList, LogOut, Menu } from 'lucide-react'
 
-// Configuración de la navegación principal
+// Definición de las rutas de navegación para el menú lateral, con su icono y etiqueta.
 const NAV = [
     { path: '/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
     { path: '/games/input', icon: <Edit3 size={20} />, label: 'Introducir partidas' },
@@ -12,7 +22,6 @@ const NAV = [
     { path: '/games', icon: <ClipboardList size={20} />, label: 'Listado de partidas' },
 ]
 
-// Componente de Diseño Principal (Layout).
 export default function AppLayout({ children }) {
     const { user, logout } = useAuth()
     const navigate = useNavigate()
@@ -60,7 +69,7 @@ export default function AppLayout({ children }) {
                 </div>
             </header>
 
-            {/* ── Capa de Fondo (Overlay) para cerrar el menú ── */}
+            {/* Capa de Fondo (Overlay) para cerrar el menú */}
             {sidebarOpen && (
                 <div
                     className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm transition-opacity"
@@ -68,7 +77,7 @@ export default function AppLayout({ children }) {
                 />
             )}
 
-            {/* ── Menú Lateral (Drawer/Aside) ── */}
+            {/* Menú Lateral (Drawer/Aside) */}
             <aside
                 className={`fixed top-0 left-0 bottom-0 w-72 bg-white border-r border-gray-200 z-50 flex flex-col transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
                     }`}
@@ -124,7 +133,7 @@ export default function AppLayout({ children }) {
                 </div>
             </aside>
 
-            {/* ── Espacio para el Contenido de la Página ── */}
+            {/* Espacio para el Contenido de la Página */}
             <main className="flex-1 min-h-screen pt-24 md:pt-28 pb-8 px-4 w-full max-w-7xl mx-auto">
                 {children}
             </main>

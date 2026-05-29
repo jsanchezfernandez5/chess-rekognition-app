@@ -1,4 +1,6 @@
-// Campo de texto genérico
+/**
+ * Campo de texto genérico con label, placeholder, error y estados deshabilitado.
+ */
 export default function InputText({
     id,
     name,

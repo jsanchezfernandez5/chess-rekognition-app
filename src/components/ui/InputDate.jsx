@@ -1,4 +1,6 @@
-// Componente base para selección de fechas
+/**
+ * Selector de fecha nativo (type="date") con label y estado de error.
+ */
 export default function InputDate({
     id,
     name,

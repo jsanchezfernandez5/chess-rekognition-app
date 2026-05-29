@@ -7,7 +7,9 @@ import InputPassword from '@/components/ui/InputPassword'
 import Button from '@/components/ui/Button'
 import { useAuth } from '@/hooks/useAuth'
 
-// Formulario de registro de usuario
+/**
+ * Página de registro para nuevos usuarios.
+ */
 export default function RegisterPage() {
     const { register } = useAuth()
     const navigate = useNavigate()
@@ -19,14 +21,14 @@ export default function RegisterPage() {
     const [success, setSuccess] = useState('')
     const [loading, setLoading] = useState(false)
 
-    // Maneja los cambios en los campos del formulario
+    // Maneja los cambios en los campos del formulario, actualizando el estado y limpiando errores.
     function handleChange(e) {
         const { name, value } = e.target
         setForm(f => ({ ...f, [name]: value }))
         setErrors(errs => ({ ...errs, [name]: '' }))
     }
 
-    // Valida los campos del formulario
+    // Valida los campos del formulario antes de enviarlo, asegurando que se cumplan los requisitos mínimos.
     function validate() {
         const next = {}
         if (!form.nombre.trim()) next.nombre = 'El nombre es obligatorio'
@@ -36,6 +38,7 @@ export default function RegisterPage() {
         return next
     }
 
+    // Maneja el envío del formulario, validando campos y llamando al método de registro del contexto de autenticación.
     async function handleSubmit(e) {
         e.preventDefault()
         const errs = validate()
@@ -53,7 +56,7 @@ export default function RegisterPage() {
         }
     }
 
-    // Renderizado del formulario de registro de usuario
+    // El diseño de la página de registro se basa en el componente AuthLayout, que centra el formulario y proporciona un estilo consistente.
     return (
         <AuthLayout>
             <form onSubmit={handleSubmit} className="flex flex-col gap-3.5" noValidate>

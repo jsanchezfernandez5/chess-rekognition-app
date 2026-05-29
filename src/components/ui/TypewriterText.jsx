@@ -1,14 +1,17 @@
+/**
+ * Componente de texto con efecto de máquina de escribir para mostrar frases promocionales o mensajes destacados.
+ */
 import { useState, useEffect } from 'react'
 
-// Frases que rotan en el lado de la imagen del login/registro
+// Frases por defecto si no se proporcionan como prop.
 const DEFAULT_PHRASES = [
-    'Capture every move.',
-    'Play on, always.',
     'Tu partida, siempre contigo.',
     'Reconoce. Guarda. Retransmite.',
+    'Cada jugada, al instante.',
+    'Play on, always.',
 ]
 
-// Texto animado estilo máquina de escribir
+// Componente principal que recibe las frases y las velocidades de escritura/borrado como props.
 export default function TypewriterText({
     phrases = DEFAULT_PHRASES,
     typingSpeed = 60,      // ms por carácter al escribir
@@ -66,7 +69,7 @@ export default function TypewriterText({
         <span className={className}>
             {displayed}
             {/* Cursor parpadeante */}
-            <span className="inline-block w-[2px] h-[1.1em] bg-cr-primary ml-0.5 align-middle animate-blink" />
+            <span className="inline-block w-0.5 h-[1.1em] bg-cr-primary ml-0.5 align-middle animate-blink" />
         </span>
     )
 }

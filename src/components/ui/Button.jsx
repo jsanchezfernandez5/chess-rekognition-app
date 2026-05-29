@@ -1,4 +1,7 @@
-// Botón genérico
+/**
+ * Botón genérico con variantes (primary, secondary, ghost) y tamaños (sm, md, lg).
+ * Soporta estado de carga con spinner y deshabilitado.
+ */
 export default function Button({
     children,
     type = 'button',

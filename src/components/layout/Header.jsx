@@ -1,23 +1,27 @@
+/** 
+ * Componente de encabezado de la aplicación.
+ */
 import { Link, useNavigate } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
-// Header global
+// Componente de encabezado que muestra el logo y el botón de logout.
 export default function Header() {
+    // Extraemos el método de logout del contexto de autenticación y el hook de navegación.
     const { logout } = useAuth()
     const navigate = useNavigate()
 
+    // Función para manejar el cierre de sesión, llama al método de logout y redirige a login.
     const handleLogout = () => {
         logout()
         navigate('/login')
     }
 
-    // Renderizado del header
     return (
         <header className="w-full h-32 px-8 md:px-16 flex items-center justify-between bg-white z-10 shrink-0">
             <div className="pt-6 pl-4">
                 <Link to="/dashboard" className="transition-opacity hover:opacity-80">
-                    <img src="/logo.svg" alt="Chess Rekognition" className="w-[260px] h-auto" />
+                    <img src="/logo.svg" alt="Chess Rekognition" className="w-65 h-auto" />
                 </Link>
             </div>
 

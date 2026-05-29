@@ -1,22 +1,38 @@
+/**
+ * Componente ChessViewer: Permite visualizar una partida de ajedrez a partir de su notación PGN. 
+ * Muestra el tablero, las jugadas y permite avanzar/retroceder por la partida o reproducirla automáticamente.
+ * También incluye un botón para descargar la partida en formato PGN. 
+ * 
+ * Utiliza la librería chess.js para manejar la lógica del juego y react-chessboard para renderizar el tablero de ajedrez.
+ * 
+ * Props:
+ * - partida: Objeto con los datos de la partida, incluyendo al menos un campo 'pgn' con la notación PGN de la partida.
+ * 
+ * El componente se encarga de parsear el PGN, extraer las jugadas y actualizar el estado del tablero a medida que el usuario navega por la partida.
+ * También maneja la reproducción automática de la partida con un intervalo de tiempo entre jugadas.
+ * 
+ * El diseño es responsivo y se adapta a diferentes tamaños de pantalla, mostrando el tablero centrado y los controles debajo.
+ */
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Chessboard } from 'react-chessboard'
 import { Chess } from 'chess.js'
 import { ChevronLeft, ChevronRight, Play, Pause, Download } from 'lucide-react'
 import { downloadPgn } from '@/utils/pgnUtils'
 
-// Visor PGN
 export default function ChessViewer({ partida }) {
     const [fen, setFen] = useState('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
     const [history, setHistory] = useState([])
+
+    // Ref para controlar la reproducción automática de la partida.
     const [currentMoveIdx, setCurrentMoveIdx] = useState(-1)
     const [isPlaying, setIsPlaying] = useState(false)
 
+    // Función para sincronizar el estado del tablero con el índice de la jugada actual.
     const playInterval = useRef(null)
 
-    // Resetear al cambiar la partida
+    // Efecto para cargar la partida cuando el prop 'partida' cambia, parseando el PGN y extrayendo las jugadas.
     useEffect(() => {
         if (!partida) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setHistory([])
             setFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
             setCurrentMoveIdx(-1)
@@ -51,7 +67,7 @@ export default function ChessViewer({ partida }) {
         }
     }, [partida])
 
-    // Función estable para obtener el FEN. Se usa para sincronizar el tablero con el movimiento actual
+    // Función para exponer métodos de control del juego (undo, reset, move) a través de la referencia actionRef.
     const syncBoard = useCallback((idx, moves) => {
         const temp = new Chess()
         for (let i = 0; i <= idx; i++) {
@@ -63,7 +79,7 @@ export default function ChessViewer({ partida }) {
         return newFen
     }, [])
 
-    // Métodos para controlar la reproducción
+    // Exponemos métodos de control del juego a través de actionRef para que el componente padre pueda controlar el tablero si es necesario.
     const handleNext = useCallback(() => {
         if (currentMoveIdx < history.length - 1) {
             syncBoard(currentMoveIdx + 1, history)
@@ -72,14 +88,14 @@ export default function ChessViewer({ partida }) {
         }
     }, [currentMoveIdx, history, syncBoard])
 
-    // Método para retroceder en la partida
+    // Función para retroceder a la jugada anterior, se llama al hacer clic en el botón de retroceso.
     const handlePrev = useCallback(() => {
         if (currentMoveIdx >= 0) {
             syncBoard(currentMoveIdx - 1, history)
         }
     }, [currentMoveIdx, history, syncBoard])
 
-    // Autoplay
+    // Efecto para manejar la reproducción automática de la partida, avanza a la siguiente jugada cada segundo mientras isPlaying sea true.
     useEffect(() => {
         if (isPlaying) {
             playInterval.current = setInterval(() => {
@@ -91,13 +107,14 @@ export default function ChessViewer({ partida }) {
         return () => { if (playInterval.current) clearInterval(playInterval.current) }
     }, [isPlaying, handleNext])
 
+    // Si no hay partida, no renderizamos nada.
     if (!partida) return null
 
-    // Renderizado del visor
+    // Renderizamos el tablero de ajedrez, los controles de navegación y la notación PGN de la partida.
     return (
         <div className="w-full flex flex-col items-center">
-
-            <div className="w-full aspect-square max-w-[420px] shadow-2xl rounded-[30px] bg-white p-4 mb-8 border border-cr-border/10">
+            // Tablero de ajedrez
+            <div className="w-full aspect-square max-w-105 shadow-2xl rounded-[30px] bg-white p-4 mb-8 border border-cr-border/10">
                 <Chessboard
                     options={{
                         position: fen,
@@ -107,6 +124,7 @@ export default function ChessViewer({ partida }) {
                 />
             </div>
 
+            // Controles de navegación y notación PGN
             <div className="flex items-center gap-12 mb-10">
                 <button
                     onClick={handlePrev}

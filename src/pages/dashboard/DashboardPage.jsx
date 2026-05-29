@@ -4,21 +4,23 @@ import Button from '@/components/ui/Button'
 import TypewriterText from '@/components/ui/TypewriterText'
 import { LogOut, PlusCircle, Swords, Radio, LayoutList } from 'lucide-react'
 
-// Página principal del panel de control (Dashboard).
+/**
+ * Página principal del dashboard para usuarios autenticados.
+ */
 export default function DashboardPage() {
     const { user, logout } = useAuth()
     const navigate = useNavigate()
 
-    // Nombre a mostrar (prioriza nombre real sobre username)
+    // Obtenemos el nombre del usuario para mostrarlo en el saludo, con fallback a username o 'jugador'.
     const nombre = user?.nombre || user?.username || 'jugador'
 
-    // Cierra la sesión y redirige al inicio.
+    // Función para manejar el cierre de sesión, llamando al método de logout del contexto de autenticación y redirigiendo a login.
     const handleLogout = () => {
         logout()
         navigate('/login')
     }
 
-    // Definición de acciones según el sketch, con los nombres solicitados
+    // Definimos las acciones principales del dashboard, cada una con su etiqueta, ruta de destino e ícono correspondiente.
     const ACCIONES = [
         {
             label: 'Introducir partidas',
@@ -42,19 +44,19 @@ export default function DashboardPage() {
         },
     ]
 
-    // Renderizado de la página del panel de control (Dashboard).
+    // Renderizado de la página del dashboard, con un diseño dividido en dos paneles: uno para las acciones y otro para la imagen y el texto de bienvenida.
     return (
         <div className="min-h-screen flex items-stretch bg-white">
 
-            {/* ── PANEL IZQUIERDO (FORMULARIO / ACCIONES) ── */}
+            {/* PANEL IZQUIERDO (FORMULARIO / ACCIONES) */}
             <div className="flex-1 flex flex-col justify-center items-center px-6 py-12 md:px-16 lg:px-24 bg-white relative z-10 shadow-[20px_0_40px_-20px_rgba(0,0,0,0.05)]">
 
-                <div className="w-full max-w-[360px]">
+                <div className="w-full max-w-90">
 
                     {/* Header: Logo y Salir */}
                     <div className="flex items-center justify-between mb-8 px-2">
                         <Link to="/dashboard" title="Ir al Dashboard" className="shrink-0 transition-opacity hover:opacity-80">
-                            <img src="/logo.svg" alt="Chess Rekognition" className="w-[260px] h-auto" />
+                            <img src="/logo.svg" alt="Chess Rekognition" className="w-65 h-auto" />
                         </Link>
 
                         <button
@@ -84,7 +86,7 @@ export default function DashboardPage() {
                                 onClick={() => navigate(accion.path)}
                                 variant="primary"
                                 size="lg"
-                                className="justify-start px-8 h-[64px] text-base group shadow-lg hover:shadow-cr-primary/30"
+                                className="justify-start px-8 h-16 text-base group shadow-lg hover:shadow-cr-primary/30"
                                 title={accion.label}
                             >
                                 <span className="shrink-0 mr-5 text-white/90 group-hover:text-white transition-colors">
@@ -98,19 +100,15 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* ── PANEL DERECHO (IMAGEN / TYPEWRITER — IDÉNTICO A LOGIN) ── */}
+            {/* PANEL DERECHO (IMAGEN / TYPEWRITER — IDÉNTICO A LOGIN) */}
             <div className="hidden md:flex relative w-1/2 flex-col justify-center items-center bg-cr-bg overflow-hidden border-l border-cr-border/60">
 
-                {/* Imagen de fondo (Misma que en AuthLayout) */}
+                {/* Imagen de fondo */}
                 <img
-                    src="https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&q=80&w=1200"
+                    src="./images/tablero_fondo.jpg"
                     alt="Chess match"
                     className="absolute inset-0 object-cover w-full h-full opacity-90 mix-blend-multiply"
                 />
-
-                {/* Gradiente sutil para integrar */}
-                <div className="absolute inset-0 bg-linear-to-t from-cr-primary/80 via-cr-primary/20 to-transparent mix-blend-multiply"></div>
-                <div className="absolute inset-0 bg-white/10 backdrop-blur-[2px]"></div>
 
                 {/* Texto y Typewriter Centrado Directamente en el overlay */}
                 <div className="relative z-10 flex flex-col items-center justify-center text-center px-8">

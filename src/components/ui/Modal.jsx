@@ -1,7 +1,10 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 
-// Modal genérico
+/**
+ * Modal animado con overlay, encabezado, botón de cierre y ancho configurable.
+ * Construido sobre Framer Motion (AnimatePresence) para transiciones suaves.
+ */
 export default function Modal({ isOpen, onClose, title, children, maxWidth = 'max-w-md' }) {
     return (
         <AnimatePresence>

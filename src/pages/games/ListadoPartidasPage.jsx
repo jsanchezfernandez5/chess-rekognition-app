@@ -4,6 +4,12 @@ import { useAuth } from '@/hooks/useAuth'
 import ChessViewer from '@/components/chess/ChessViewer'
 import Header from '@/components/layout/Header'
 
+/**
+ * ListadoPartidasPage: Página que muestra el historial de partidas del usuario, con un visor integrado para revisar cada partida en detalle.
+ * - A la izquierda se muestra un listado de partidas con información básica (jugadores, resultado, fecha).
+ * - Al seleccionar una partida, se muestra su detalle en el visor de la derecha.
+ * - En dispositivos móviles, se implementa un sistema de tabs para alternar entre el listado y el visor.
+ */
 export default function ListadoPartidasPage() {
     const { authFetch } = useAuth()
     const [partidas, setPartidas] = useState([])
@@ -11,7 +17,7 @@ export default function ListadoPartidasPage() {
     const [selectedIdx, setSelectedIdx] = useState(0)
     const [activeTab, setActiveTab] = useState('list')
 
-    // Cargar historial
+    // Al montar el componente, se realiza una petición al backend para obtener el listado de partidas del usuario
     useEffect(() => {
         const fetchPartidas = async () => {
             try {
@@ -29,22 +35,20 @@ export default function ListadoPartidasPage() {
             }
         }
         fetchPartidas()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    // Seleccionar partida
+    // Función para manejar la selección de una partida del listado. Actualiza el índice seleccionado y, en móviles, cambia al tab del visor.
     const selectPartida = (idx) => {
         setSelectedIdx(idx)
-        // En móvil/tablet, saltar al visor tras seleccionar
         if (window.innerWidth < 768) {
             setActiveTab('viewer')
         }
     }
 
-    // Partida seleccionada
+    // Obtenemos la partida seleccionada a partir del índice. Si no hay partidas o el índice es inválido, será null.
     const partidaSeleccionada = partidas[selectedIdx] || null
 
-    // Loading
+    // Si estamos en estado de carga, mostramos un spinner centrado en la pantalla
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-white">
@@ -53,7 +57,7 @@ export default function ListadoPartidasPage() {
         )
     }
 
-    // 
+    // Renderizamos el contenido principal: el listado de partidas a la izquierda y el visor a la derecha. En móviles, se muestra uno u otro según el tab activo.
     return (
         <div className="min-h-screen flex flex-col bg-white">
             <Header />
@@ -69,7 +73,7 @@ export default function ListadoPartidasPage() {
                         </h1>
                     </div>
 
-                    <div className="flex-1 max-w-[500px] mx-auto w-full space-y-5 pb-20 md:pb-0">
+                    <div className="flex-1 max-w-125 mx-auto w-full space-y-5 pb-20 md:pb-0">
                         {partidas.length === 0 ? (
                             <div className="text-center py-20 opacity-30">
                                 <Inbox className="mx-auto mb-4" size={48} />
@@ -107,7 +111,7 @@ export default function ListadoPartidasPage() {
 
                 {/* COLUMNA DERECHA: VISOR */}
                 <div className={`w-full md:w-1/2 flex flex-col p-6 md:p-10 lg:p-12 bg-white ${activeTab !== 'viewer' ? 'hidden md:flex' : 'flex'}`}>
-                    <div className="flex-1 max-w-[500px] mx-auto w-full">
+                    <div className="flex-1 max-w-125 mx-auto w-full">
                         {/* DATOS DE LA PARTIDA - Entre el título y el visor */}
                         {partidaSeleccionada && (
                             <div className="mb-8 text-center bg-cr-bg/50 p-6 rounded-[30px] border border-cr-border/40">

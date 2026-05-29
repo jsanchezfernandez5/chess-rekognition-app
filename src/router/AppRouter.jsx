@@ -1,3 +1,26 @@
+/**
+ * AppRouter.jsx
+ * 
+ * Define las rutas de la aplicación utilizando React Router. 
+ * Incluye rutas públicas (login, registro) y privadas (dashboard, gestión de partidas). 
+ * También maneja rutas para retransmisiones públicas y una página 404 para rutas no encontradas.
+ * 
+ * La función Loader muestra un spinner de carga mientras se verifica el estado de autenticación. PrivateRoute y PublicRoute son componentes de orden superior que controlan el acceso a las rutas según el estado de autenticación del usuario.
+ * 
+ * Rutas definidas:
+ * - /login: Página de inicio de sesión (pública)
+ * - /register: Página de registro (pública)
+ * - /dashboard: Panel principal del usuario (privada)
+ * - /games/input: Formulario para introducir una nueva partida (privada)
+ * - /games: Listado de partidas del usuario (privada)
+ * - /games/live: Retransmisión en vivo de partidas (privada)
+ * - /stockfish: Análisis con Stockfish (privada)
+ * - /retransmision/:token: Retransmisión pública de una partida mediante token (pública)
+ * - /*: Página 404 para rutas no encontradas
+ * 
+ * El componente raíz de la aplicación (App.jsx) envuelve este enrutador con el proveedor de autenticación para 
+ * que el estado de autenticación esté disponible en toda la aplicación.
+ */
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import LoginPage from '@/pages/auth/LoginPage'
@@ -10,7 +33,7 @@ import RetransmisionPage from '@/pages/games/RetransmisionPage'
 import RetransmisionPublicaPage from '@/pages/public/RetransmisionPublicaPage'
 import NotFoundPage from '@/pages/public/NotFoundPage'
 
-// Componente Loader que se muestra mientras se carga la aplicación.
+/** Componente de carga que muestra un spinner mientras se verifica el estado de autenticación. */
 function Loader() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-cr-bg">
@@ -19,23 +42,21 @@ function Loader() {
     )
 }
 
-// Componente PrivateRoute que protege las rutas privadas.
-// Si el usuario no está autenticado, redirige a la página de login.
+/** Componente de ruta privada que redirige a login si el usuario no está autenticado. */
 function PrivateRoute() {
     const { isAuthenticated, loading } = useAuth()
     if (loading) return <Loader />
     return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />
 }
 
-// Componente PublicRoute que protege las rutas públicas.
-// Si el usuario está autenticado, redirige a la página de dashboard.
+/** Componente de ruta pública que redirige a dashboard si el usuario ya está autenticado. */
 function PublicRoute() {
     const { isAuthenticated, loading } = useAuth()
     if (loading) return <Loader />
     return isAuthenticated ? <Navigate to="/dashboard" replace /> : <Outlet />
 }
 
-// Exporta el componente AppRouter que contiene todas las rutas de la aplicación.
+/** Componente principal del enrutador de la aplicación, define todas las rutas y su acceso. */
 export default function AppRouter() {
     return (
         <BrowserRouter>
@@ -55,10 +76,8 @@ export default function AppRouter() {
                     <Route path="/stockfish" element={<StockfishPage />} />
                 </Route>
 
-                {/* Rutas Públicas (sin Auth y sin redirección de Auth) */}
                 <Route path="/retransmision/:token" element={<RetransmisionPublicaPage />} />
 
-                {/* Ruta para manejar el error 404 */}
                 <Route path="*" element={<NotFoundPage />} />
             </Routes>
         </BrowserRouter>

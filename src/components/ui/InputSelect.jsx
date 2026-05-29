@@ -1,4 +1,6 @@
-// Componente base para desplegables
+/**
+ * Desplegable genérico con label, icono de chevrón y estados de error/deshabilitado.
+ */
 export default function InputSelect({
     id,
     name,

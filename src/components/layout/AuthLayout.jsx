@@ -1,13 +1,15 @@
+/**
+ * Componente de diseño para las páginas de autenticación (login, registro).
+ */
 import TypewriterText from '@/components/ui/TypewriterText'
 
-// Estructura de la página de autenticación (Login/Register)
 export default function AuthLayout({ children }) {
     return (
         <div className="min-h-screen flex items-stretch bg-white">
 
             {/* Parte Izquierda: Panel Formulario */}
             <div className="flex-1 flex flex-col justify-center items-center px-6 py-12 md:px-16 lg:px-24 bg-white relative z-10 shadow-[20px_0_40px_-20px_rgba(0,0,0,0.05)]">
-                <div className="w-full max-w-[360px]">
+                <div className="w-full max-w-90">
                     {/* Logo (Visible siempre en mobile y en desktop) */}
                     <div className="flex justify-center mb-10 md:mb-14">
                         <img src="/logo.svg" alt="Chess Rekognition" className="w-[260px] h-auto shrink-0 mb-4" />
@@ -22,16 +24,12 @@ export default function AuthLayout({ children }) {
             {/* Parte Derecha: Imagen/Decoración — visible solo en desktop */}
             <div className="hidden md:flex relative w-1/2 flex-col justify-center items-center bg-cr-bg overflow-hidden border-l border-cr-border/60">
 
-                {/* Imagen de fondo sobre el panel (Tablero elegante) */}
+                {/* Imagen de fondo */}
                 <img
-                    src="https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&q=80&w=1200"
+                    src="./images/tablero_fondo.jpg"
                     alt="Chess match"
                     className="absolute inset-0 object-cover w-full h-full opacity-90 mix-blend-multiply"
                 />
-
-                {/* Gradiente sutil para integrar */}
-                <div className="absolute inset-0 bg-linear-to-t from-cr-primary/80 via-cr-primary/20 to-transparent mix-blend-multiply"></div>
-                <div className="absolute inset-0 bg-white/10 backdrop-blur-[2px]"></div>
 
                 {/* Texto y Typewriter Centrado Directamente en el overlay */}
                 <div className="relative z-10 flex flex-col items-center justify-center text-center px-8">

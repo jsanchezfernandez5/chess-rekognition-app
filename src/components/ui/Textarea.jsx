@@ -1,4 +1,6 @@
-// Componente base para textarea
+/**
+ * Área de texto multilínea con label, placeholder, rows configurables y estado de error.
+ */
 export default function Textarea({
     id,
     name,

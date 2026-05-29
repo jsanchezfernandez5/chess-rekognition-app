@@ -1,3 +1,20 @@
+/**
+ * Componente de tablero de ajedrez interactivo que utiliza la librería react-chessboard para renderizar el tablero y chess.js para manejar la lógica del juego.
+ * Permite a los usuarios arrastrar y soltar piezas para realizar movimientos, con soporte para promociones de peones mediante un modal.
+ * El componente también expone métodos para deshacer movimientos, reiniciar el juego o realizar movimientos programáticamente a través de una referencia.
+ * 
+ * Props:
+ * - initialFen: Cadena FEN para establecer la posición inicial del tablero (por defecto 'start' para la posición inicial estándar).
+ * - boardOrientation: Orientación del tablero ('white' o 'black').
+ * - onChange: Función callback que se llama cada vez que el estado del juego cambia, recibiendo un objeto con información del juego.
+ * - actionRef: Referencia externa para exponer métodos de control del juego (undo, reset, move).
+ * 
+ * El componente maneja internamente el estado del juego utilizando chess.js, y actualiza el estado del tablero cada vez que se realiza un movimiento válido.
+ * Para los movimientos de promoción, muestra un modal para que el usuario seleccione la pieza a la que desea promover su peón.
+ * Cada vez que el juego cambia, se llama al callback onChange con la información actualizada del juego, incluyendo FEN, PGN, historial de movimientos, turno actual y estado de juego.
+ * 
+ */
+
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { Chessboard } from 'react-chessboard'
 import { Chess } from 'chess.js'
@@ -9,26 +26,20 @@ export default function ChessBoard({
     onChange,
     actionRef
 }) {
-    // Referencia al motor de juego (chess.js) para que no se pierda entre renders
     const game = useRef(new Chess(initialFen === 'start' ? undefined : initialFen))
 
-    // Estado que mantiene el FEN (estado actual) del tablero
     const [fen, setFen] = useState(() => new Chess(initialFen === 'start' ? undefined : initialFen).fen())
 
-    // Control del modal para cuando un peón llega al final
     const [showPromotionModal, setShowPromotionModal] = useState(false)
     const [movePendingPromotion, setMovePendingPromotion] = useState(null)
 
-    // Guardamos el callback de cambio en una ref para evitar re-renders innecesarios
     const onChangeRef = useRef(onChange)
     useEffect(() => { onChangeRef.current = onChange }, [onChange])
 
-    // Función para avisar al componente padre que algo ha cambiado en la partida
+    // Función para notificar cambios en el juego, se llama después de cada movimiento válido.
     const notifyChange = useCallback(() => {
-        // Usamos un pequeño delay para que React no se queje de cambios de estado durante el render
         setTimeout(() => {
             if (onChangeRef.current) {
-                // Sacamos el PGN "limpio", eliminando TODOS los bloques entre corchetes
                 const rawPgn = game.current.pgn()
                 const cleanPgn = rawPgn.replace(/\[.*?\]/g, '').trim()
 
@@ -47,32 +58,28 @@ export default function ChessBoard({
         }, 0)
     }, [])
 
-    // Esta función se dispara cuando soltamos una pieza en una casilla
+    // Función que se llama al soltar una pieza en el tablero, maneja la lógica de movimiento y promoción.
     function onDrop({ piece, sourceSquare, targetSquare }) {
-        // Normalizamos el tipo de pieza (react-chessboard a veces manda un objeto)
         const pieceType = typeof piece === 'string' ? piece : piece?.pieceType ?? ''
 
         if (!sourceSquare || !targetSquare) return false
 
         try {
-            // ¿Es un peón intentando coronar?
             const isPawn = pieceType && pieceType[1] === 'P'
             const isLastRank = targetSquare[1] === '8' || targetSquare[1] === '1'
 
             if (isPawn && isLastRank) {
-                // Verificamos si el movimiento es legal antes de abrir el modal
                 const moves = game.current.moves({ square: sourceSquare, verbose: true })
                 if (moves.some(m => m.to === targetSquare)) {
                     setMovePendingPromotion({ from: sourceSquare, to: targetSquare })
                     setShowPromotionModal(true)
-                    return false // Bloqueamos el movimiento visual hasta que elija pieza
+                    return false
                 }
             }
 
-            // Movimiento normal de toda la vida
             const move = game.current.move({ from: sourceSquare, to: targetSquare })
 
-            if (move === null) return false // Movimiento ilegal
+            if (move === null) return false
 
             setFen(game.current.fen())
             notifyChange()
@@ -82,7 +89,7 @@ export default function ChessBoard({
         }
     }
 
-    // Se ejecuta cuando el usuario elige la pieza (Dama, Torre...) en el modal
+    // Función para manejar la promoción de peones, se llama al seleccionar una pieza en el modal de promoción.
     function handlePromotion(pieceType) {
         if (!movePendingPromotion) return
 
@@ -98,7 +105,6 @@ export default function ChessBoard({
         setShowPromotionModal(false)
     }
 
-    // Exponemos funciones de control (deshacer, reset, mover) al exterior
     useEffect(() => {
         if (!actionRef) return
         actionRef.current = {
@@ -124,9 +130,9 @@ export default function ChessBoard({
     }, [actionRef, notifyChange])
 
     return (
+        // Tablero de ajedrez.
         <div className="w-full flex justify-center items-center">
-            {/* Contenedor del tablero con sombra y bordes redondeados */}
-            <div className="w-full aspect-square max-w-[500px] shadow-2xl rounded-2xl bg-white p-4">
+            <div className="w-full aspect-square max-w-125 shadow-2xl rounded-2xl bg-white p-4">
                 <Chessboard
                     options={{
                         position: fen,
@@ -138,7 +144,7 @@ export default function ChessBoard({
                 />
             </div>
 
-            {/* Modal de selección de pieza al coronar */}
+            // Modal para la promoción de peones, se muestra cuando un peón llega a la última fila y el usuario debe elegir a qué pieza promoverlo.
             <Modal
                 isOpen={showPromotionModal}
                 onClose={() => { setShowPromotionModal(false); setMovePendingPromotion(null) }}
@@ -151,7 +157,8 @@ export default function ChessBoard({
                         { type: 'r', label: 'Torre', icon: '♖' },
                         { type: 'b', label: 'Alfil', icon: '♗' },
                         { type: 'n', label: 'Caballo', icon: '♘' }
-                    ].map((p) => (
+                    ]
+                    .map((p) => (
                         <button
                             key={p.type}
                             onClick={() => handlePromotion(p.type)}

@@ -1,3 +1,6 @@
+/**
+ * Página para jugar contra el motor de ajedrez Stockfish con diferentes niveles de dificultad.
+ */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Flag, Download, ChevronDown, Swords, HelpCircle, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
@@ -6,9 +9,17 @@ import ChessBoard from '@/components/chess/ChessBoard'
 import Modal from '@/components/ui/Modal'
 import Header from '@/components/layout/Header'
 
-// Componentes de UI extraídos fuera para evitar remontajes innecesarios
-const ConfigForm = ({ playerColor, setPlayerColor, elo, setElo, handleStartGame, eloLevels }) => (
-    <div className="w-full max-w-[500px] mx-auto flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+// Componente para configurar el juego antes de comenzar el duelo contra Stockfish
+const ConfigForm = (
+    { 
+        playerColor, 
+        setPlayerColor, 
+        elo, 
+        setElo, 
+        handleStartGame, 
+        eloLevels 
+}) => (
+    <div className="w-full max-w-125 mx-auto flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="mb-10 text-center">
             <h1 className="font-display text-2xl font-black text-cr-text tracking-tight">
                 Configura el nivel
@@ -63,7 +74,7 @@ const ConfigForm = ({ playerColor, setPlayerColor, elo, setElo, handleStartGame,
     </div>
 )
 
-// Renderiza el área de juego
+// Componente que muestra el tablero de ajedrez, el estado del juego, el historial de movimientos y las opciones para abandonar o descargar el PGN
 const GameArea = ({
     status,
     isGameOver,
@@ -80,7 +91,7 @@ const GameArea = ({
     moveHistory
 }) => {
     return (
-        <div className="w-full max-w-[500px] mx-auto flex flex-col gap-6 items-center animate-in fade-in slide-in-from-right-4 duration-500 pb-20 md:pb-0">
+        <div className="w-full max-w-125 mx-auto flex flex-col gap-6 items-center animate-in fade-in slide-in-from-right-4 duration-500 pb-20 md:pb-0">
             <div className="w-full flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
                     <div className={`w-3 h-3 rounded-full ${indicatorColor}`} />
@@ -102,7 +113,7 @@ const GameArea = ({
                 />
             </div>
 
-            <div className="min-h-[50px] flex items-center justify-center w-full mt-2">
+            <div className="min-h-12.5 flex items-center justify-center w-full mt-2">
                 {status === 'playing' && !isGameOver && (
                     <Button
                         onClick={handleAbandonar}
@@ -152,17 +163,13 @@ const GameArea = ({
     )
 }
 
-/**
- * Página principal de Stockfish
- */
+// Componente principal que maneja el estado del juego, la interacción con el motor Stockfish, y la lógica para abandonar o descargar el PGN
 export default function StockfishPage() {
     const { user, authFetch } = useAuth()
     const boardRef = useRef(null)
 
-    // Nombre completo del usuario para los metadatos del PGN
     const userFullName = user ? `${user.nombre || user.username} ${user.apellidos || ''}`.trim() : 'Jugador'
 
-    // --- ESTADO DEL JUEGO ---
     const [currentFen, setCurrentFen] = useState('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
     const [currentTurn, setCurrentTurn] = useState('w')
     const [isGameOver, setIsGameOver] = useState(false)
@@ -176,7 +183,7 @@ export default function StockfishPage() {
     const [isEngineThinking, setIsEngineThinking] = useState(false)
     const [view, setView] = useState('config') // Para móvil: 'config' | 'play'
 
-    // --- ESTADO DEL MODAL ---
+    // Estado para controlar el modal de confirmación al abandonar la partida o descargar el PGN
     const [modal, setModal] = useState({
         isOpen: false,
         title: '',
@@ -188,11 +195,13 @@ export default function StockfishPage() {
         type: 'confirm' // 'confirm' | 'info'
     })
 
+    // Función para cerrar el modal y resetear su estado
     const hideModal = () => setModal(prev => ({ ...prev, isOpen: false }))
 
+    // Ref para controlar el temporizador del motor y evitar llamadas concurrentes
     const engineTimerRef = useRef(null)
 
-    // --- OPCIONES DE CONFIGURACIÓN ---
+    // Niveles de ELO predefinidos para el motor Stockfish, con etiquetas descriptivas para cada nivel
     const ELO_LEVELS = [
         { label: 'Principiante (1350)', value: 1350 },
         { label: 'Jugador ocasional (1500)', value: 1500 },
@@ -203,7 +212,8 @@ export default function StockfishPage() {
         { label: 'Super GM (3100)', value: 3100 },
     ]
 
-    // Control del tablero
+    // Función que se llama cada vez que el estado del tablero cambia (movimiento realizado), 
+    // actualizando el FEN, el turno, el estado de la partida, el resultado, el PGN y el historial de movimientos.
     const handleBoardChange = useCallback((snapshot) => {
         setCurrentFen(snapshot.fen)
         setCurrentTurn(snapshot.turn)
@@ -213,7 +223,7 @@ export default function StockfishPage() {
         setMoveHistory(snapshot.history)
     }, [])
 
-    // Obtener el movimiento del motor
+    // Función para solicitar al motor Stockfish la mejor jugada dada la posición actual en formato FEN, el nivel de ELO seleccionado y una profundidad de búsqueda fija.
     const getEngineMove = useCallback(async (fen) => {
         setIsEngineThinking(true)
         try {
@@ -242,7 +252,7 @@ export default function StockfishPage() {
         }
     }, [elo, authFetch, setIsEngineThinking])
 
-    // Detectar turno del motor
+    // Efecto que se ejecuta cada vez que cambia el FEN, el turno, el estado de la partida, el color del jugador, el estado del juego o la función para obtener la jugada del motor. Si es el turno del motor y la partida no ha terminado, se inicia un temporizador para solicitar la jugada del motor después de un breve retraso.
     useEffect(() => {
         if (status === 'playing' && currentTurn !== playerColor && !isGameOver) {
             engineTimerRef.current = setTimeout(() => {
@@ -252,7 +262,7 @@ export default function StockfishPage() {
         return () => clearTimeout(engineTimerRef.current)
     }, [currentFen, currentTurn, isGameOver, playerColor, status, getEngineMove])
 
-    // Iniciar nueva partida
+    // Función que se llama al hacer clic en el botón de iniciar partida, reseteando todos los estados relacionados con el juego y cambiando la vista al tablero.
     const handleStartGame = () => {
         setStatus('playing')
         setView('play')
@@ -265,7 +275,7 @@ export default function StockfishPage() {
         setGameKey(k => k + 1)
     }
 
-    // Proceso de abandono con modales
+    // Función que se llama al hacer clic en el botón de abandonar partida, mostrando un modal de confirmación. Si el jugador confirma, se muestra otro modal preguntando si desea descargar el PGN antes de finalizar la partida. Dependiendo de la respuesta, se descarga el PGN y se resetea el estado del juego.
     const handleAbandonar = () => {
         setModal({
             isOpen: true,
@@ -297,7 +307,7 @@ export default function StockfishPage() {
         })
     }
 
-    // Confirmar abandono
+    // Función que resetea el estado del juego a su configuración inicial, utilizada después de confirmar el abandono de la partida.
     const confirmAbandon = () => {
         setStatus('config')
         setView('config')
@@ -311,7 +321,6 @@ export default function StockfishPage() {
         hideModal()
     }
 
-    // Cálculos para GameArea
     const isPlayerTurn = status === 'playing' && currentTurn === playerColor
     const indicatorColor = status !== 'playing' ? 'bg-cr-border' : (!isPlayerTurn && !isGameOver ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500')
 
@@ -322,7 +331,8 @@ export default function StockfishPage() {
         else statusText = 'Stockfish pensando...'
     }
 
-    // Descargar PGN
+    // Función que se llama al hacer clic en el botón de descargar PGN, generando un archivo con la notación PGN completa de la partida, 
+    // incluyendo los metadatos del evento, los jugadores, la fecha y el resultado. El archivo se descarga automáticamente con un nombre descriptivo.
     const handleDownloadPGN = (currentResult = null) => {
         const today = new Date().toISOString().split('T')[0].replace(/-/g, '.')
         const result = currentResult || gameResult
@@ -348,7 +358,7 @@ export default function StockfishPage() {
         hideModal()
     }
 
-    // Renderizado de la página
+    // Renderizado principal de la página, mostrando el header, la configuración o el tablero según el estado actual, y el modal de confirmación cuando sea necesario.
     return (
         <div className="min-h-screen flex flex-col bg-white overflow-x-hidden">
             <Header />

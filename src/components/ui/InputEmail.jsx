@@ -1,4 +1,6 @@
-// Campo de entrada de email
+/**
+ * Campo de entrada de email con inputMode="email" y autocomplete.
+ */
 export default function InputEmail({
     id,
     name = 'email',

@@ -1,13 +1,5 @@
-import { useNavigate, Link } from 'react-router-dom'
-import {
-    RotateCcw,
-    Undo2,
-    Save,
-    LogOut,
-    Loader2,
-    CheckCircle2,
-    AlertCircle
-} from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { RotateCcw, Undo2, Save, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useState, useCallback, useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import Button from '@/components/ui/Button'
@@ -20,23 +12,24 @@ import Modal from '@/components/ui/Modal'
 import Header from '@/components/layout/Header'
 
 /**
- * Vista para introducir partidas manualmente.
- * Aquí podemos 'jugar' la partida en el tablero y rellenar los datos del torneo.
+ * Página para introducir manualmente una partida de ajedrez, con un tablero interactivo y un formulario para los detalles del evento.
+ * El usuario puede mover las piezas en el tablero para generar el PGN automáticamente, y luego rellenar los datos del evento (jugadores, fecha, resultado, etc).
+ * Al guardar, se validan los campos y se muestra un modal de éxito o error según corresponda.
  */
 export default function IntroducirPartidaPage() {
     const { authFetch } = useAuth()
     const navigate = useNavigate()
     const boardRef = useRef(null)
 
-    // Control de pestañas para la versión móvil (Tablero / Formulario)
+    // 'board' muestra el tablero, 'form' muestra el formulario de detalles. En desktop se muestran ambos, en móvil se alterna.
     const [activeTab, setActiveTab] = useState('board')
 
-    // --- ESTADO DE LA PARTIDA ---
+    // Estado del tablero y la partida
     const [pgn, setPgn] = useState('')
     const [moveHistory, setMoveHistory] = useState([])
     const [boardOrientation, setBoardOrientation] = useState('white')
 
-    // --- DATOS DEL FORMULARIO ---
+    // Estado del formulario de detalles de la partida
     const [formData, setFormData] = useState({
         evento: '',
         blancas: '',
@@ -49,11 +42,11 @@ export default function IntroducirPartidaPage() {
         observaciones: ''
     })
 
-    // Gestión de errores y estados de carga
+    // Estado para manejo de errores y feedback al usuario
     const [errors, setErrors] = useState({})
     const [isSaving, setIsSaving] = useState(false)
 
-    // --- ESTADO DEL MODAL ---
+    // Estado para el modal de feedback (éxito/error al guardar)
     const [modal, setModal] = useState({
         isOpen: false,
         title: '',
@@ -62,26 +55,26 @@ export default function IntroducirPartidaPage() {
         type: 'success' // 'success' | 'error'
     })
 
-    // Cierre de la Modal
+    // Función para cerrar el modal
     const hideModal = () => setModal(prev => ({ ...prev, isOpen: false }))
 
-    // Escuchamos los cambios que vienen del componente ChessBoard
+    // Callback que se pasa al componente ChessBoard para recibir actualizaciones del estado del tablero (PGN y movimientos)
     const handleBoardChange = useCallback((status) => {
         setPgn(status.pgn)
         setMoveHistory(status.history)
     }, [])
 
-    // Función para dar marcha atrás a la última jugada
+    // Función para deshacer la última jugada en el tablero
     function undoMove() {
         boardRef.current?.undo()
     }
 
-    // Girar el tablero (útil si juegas con negras)
+    // Función para alternar la orientación del tablero entre blancas y negras
     function toggleOrientation() {
         setBoardOrientation(prev => prev === 'white' ? 'black' : 'white')
     }
 
-    // Actualizamos los campos del formulario de forma dinámica
+    // Función para manejar cambios en los campos del formulario y actualizar el estado correspondiente
     const handleInputChange = (e) => {
         const { name, value } = e.target
         setFormData(prev => ({ ...prev, [name]: value }))
@@ -92,11 +85,10 @@ export default function IntroducirPartidaPage() {
         }
     }
 
-    // El corazón de la página: guardar la partida en nuestra API
+    // Función para validar los datos y enviar la nueva partida al backend
     const handleSave = async (e) => {
         e.preventDefault()
 
-        // Validaciones básicas antes de intentar enviar nada
         const newErrors = {}
         if (!formData.evento) newErrors.evento = 'El nombre del evento es necesario'
         if (!formData.blancas) newErrors.blancas = 'Falta el nombre del jugador de blancas'
@@ -111,16 +103,15 @@ export default function IntroducirPartidaPage() {
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors)
-            // Si hay errores y estamos en móvil, le llevamos a la pestaña del formulario para que los vea
             setActiveTab('form')
             return
         }
 
-        // Guardamos los datos en la API
+        // Si todo es válido, procedemos a enviar los datos al backend
         setIsSaving(true)
 
+        // Construimos el payload con los datos del formulario y el PGN generado por el tablero
         try {
-            // Preparamos el objeto tal cual lo espera el backend (FastAPI)
             const payload = {
                 evento: formData.evento,
                 blancas: formData.blancas,
@@ -135,7 +126,6 @@ export default function IntroducirPartidaPage() {
                 observaciones: formData.observaciones || null
             }
 
-            // Llamada autenticada a nuestro servicio de partidas
             const res = await authFetch('/partidas/', {
                 method: 'POST',
                 body: JSON.stringify(payload)
@@ -146,7 +136,7 @@ export default function IntroducirPartidaPage() {
                 throw new Error(errorData.detail || 'Algo ha fallado al intentar guardar')
             }
 
-            // Mostrar modal de éxito
+            // Si la respuesta es exitosa, mostramos un modal de éxito y redirigimos al dashboard
             setModal({
                 isOpen: true,
                 title: '¡Éxito!',
@@ -157,6 +147,7 @@ export default function IntroducirPartidaPage() {
 
         } catch (error) {
             console.error('Error al guardar:', error)
+            // Si hay un error, mostramos un modal con el mensaje correspondiente
             setModal({
                 isOpen: true,
                 title: 'Error al guardar',
@@ -169,7 +160,6 @@ export default function IntroducirPartidaPage() {
         }
     }
 
-    // Renderizado de la página de introducción de partidas
     return (
         <div className="min-h-screen flex flex-col bg-white">
             <Header />
@@ -185,7 +175,7 @@ export default function IntroducirPartidaPage() {
                         </h1>
                     </div>
 
-                    <div className="flex-1 flex flex-col items-center justify-center max-w-[500px] mx-auto w-full">
+                    <div className="flex-1 flex flex-col items-center justify-center max-w-125 mx-auto w-full">
                         <ChessBoard
                             actionRef={boardRef}
                             onChange={handleBoardChange}
@@ -237,7 +227,7 @@ export default function IntroducirPartidaPage() {
 
                 {/* Formulario con los detalles técnicos del evento/partida */}
                 <div className={`w-full md:w-1/2 flex flex-col bg-white p-6 md:p-10 lg:p-12 overflow-y-auto ${activeTab !== 'form' ? 'hidden md:flex' : 'flex'}`}>
-                    <div className="max-w-[500px] mx-auto w-full mb-20 md:mb-0">
+                    <div className="max-w-125 mx-auto w-full mb-20 md:mb-0">
 
                         <div className="mb-10 text-center">
                             <h2 className="font-display text-2xl font-black text-cr-text tracking-tight">

@@ -1,5 +1,15 @@
 /**
+ * ---------------------------------------------------------------------------
  * Utilidades para trabajar con formato PGN (Portable Game Notation).
+ * Incluye funciones para generar un PGN completo a partir de los datos de una partida,
+ * así como para descargarlo como archivo .pgn.
+ * 
+ * El formato PGN es un estándar para representar partidas de ajedrez, con cabeceras
+ * que describen el evento, lugar, fecha, jugadores, resultado, etc., seguidas de los movimientos.
+ * 
+ * Este módulo se encarga de construir correctamente el PGN a partir de la información
+ * proporcionada por el backend, asegurando que se sigan las convenciones del formato.
+ * ----------------------------------------------------------------------------
  */
 
 /**
@@ -25,7 +35,7 @@ export function generateFullPgn(partida) {
         }
     }
 
-    // Cabeceras estándar (The Seven Tag Roster)
+    // Cabeceras estándar obligatorias
     const headers = [
         `[Event "${partida.evento || 'Partida de Ajedrez'}"]`,
         `[Site "${partida.lugar || '?'}"]`,
@@ -56,9 +66,10 @@ export function generateFullPgn(partida) {
 }
 
 /**
- * Descarga un archivo .pgn al navegador del usuario.
+ * Analiza una cadena PGN y extrae los movimientos.
  * 
- * @param {Object} partida - Objeto con los datos de la partida.
+ * @param {string} pgnString - La cadena PGN a analizar.
+ * @returns {Array<string>} Un array con los movimientos extraídos.
  */
 export function parsePgn(pgnString) {
     if (!pgnString) return []
@@ -66,6 +77,11 @@ export function parsePgn(pgnString) {
     return moves.map(m => m.trim())
 }
 
+/**
+ * Descarga un archivo .pgn al navegador del usuario.
+ * 
+ * @param {Object} partida - Objeto con los datos de la partida.
+ */
 export function downloadPgn(partida) {
     const fullPgn = generateFullPgn(partida);
     const blob = new Blob([fullPgn], { type: 'application/x-chess-pgn' });

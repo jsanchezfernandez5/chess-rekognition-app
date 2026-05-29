@@ -3,27 +3,32 @@ import { useNavigate } from 'react-router-dom'
 import { Chess } from 'chess.js'
 import { Chessboard } from 'react-chessboard'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-    Camera, 
-    Settings, 
-    Share2, 
-    CheckCircle2, 
-    AlertCircle, 
-    History,
-    Save,
-    Copy,
-    Check
-} from 'lucide-react'
+import { Camera, Settings, Share2, CheckCircle2, AlertCircle, History, Save, Copy, Check } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { parsePgn } from '@/utils/pgnUtils'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 
+/**
+ * RetransmisionPage: Permite a los usuarios retransmitir una partida de ajedrez en vivo utilizando visión por computadora para detectar movimientos en un tablero físico.
+ * 
+ * Flujo principal:
+ * 1. El usuario inicia la cámara y calibra el tablero.
+ * 2. El sistema detecta movimientos automáticamente y actualiza el estado del juego.
+ * 3. Los espectadores pueden seguir la partida en tiempo real a través de un enlace compartido.
+ * 4. Al finalizar, el usuario puede guardar la partida en su historial.
+ * 
+ * Características destacadas:
+ * - Detección automática de movimientos con feedback visual.
+ * - Interfaz intuitiva para controlar la retransmisión y ver el historial de movimientos.
+ * - Logs técnicos para monitorear el proceso de reconocimiento.
+ * - Modal para compartir fácilmente el enlace de la retransmisión.
+ */
 export default function RetransmisionPage() {
     const { authFetch } = useAuth()
     const navigate = useNavigate()
     
-    // --- Refs de lógica (no provocan re-render) ---
+    // Referencias para manejar el estado del juego, la cámara, WebSocket y otros elementos sin causar re-renderizados innecesarios.
     const game = useRef(new Chess())
     const wsRef = useRef(null)
     const intervalRef = useRef(null)
@@ -32,9 +37,11 @@ export default function RetransmisionPage() {
     const retransmisionIdRef = useRef(null)
     const videoRef = useRef(null)
     const canvasRef = useRef(null)
+
+    // Para evitar mostrar mensajes de error en detecciones fallidas ocasionales, se permite un margen de 3 "misses" antes de alertar al usuario.
     const MISS_THRESHOLD = 3
 
-    // --- Estado UI ---
+    // Estados para controlar la interfaz y el flujo de la retransmisión.
     const [isCamActive, setIsCamActive] = useState(false)
     const [isCalibrated, setIsCalibrated] = useState(false)
     const [isAutoMode, setIsAutoMode] = useState(false)
@@ -49,7 +56,8 @@ export default function RetransmisionPage() {
     const [logs, setLogs] = useState([])
     const [specialMove, setSpecialMove] = useState(null)
 
-    // --- Inicialización de la retransmisión ---
+    // Al montar el componente, se crea una nueva retransmisión en el backend para obtener un ID y token únicos. 
+    // Esto permite que cada sesión de retransmisión sea independiente y segura.
     useEffect(() => {
         let active = true
         async function init() {
@@ -81,13 +89,13 @@ export default function RetransmisionPage() {
         }
     }, [])
 
+    // Función de limpieza para cerrar conexiones y liberar recursos al finalizar la retransmisión o desmontar el componente.
     const cleanup = async () => {
         clearInterval(intervalRef.current)
         if (wsRef.current) wsRef.current.close()
         if (videoRef.current?.srcObject) {
             videoRef.current.srcObject.getTracks().forEach(t => t.stop())
         }
-        // Finalizar en el backend si tenemos el ID
         if (retransmisionIdRef.current) {
             authFetch(`/retransmision/${retransmisionIdRef.current}`, {
                 method: 'PATCH',
@@ -96,6 +104,7 @@ export default function RetransmisionPage() {
         }
     }
 
+    // Inicializa la conexión WebSocket para enviar actualizaciones de estado a los espectadores en tiempo real.
     const initWebSocket = (token) => {
         const apiUrl = import.meta.env.VITE_API_URL || 'https://chess-rekognition-api-production.up.railway.app'
         const protocol = apiUrl.startsWith('https') ? 'wss:' : 'ws:'
@@ -108,7 +117,7 @@ export default function RetransmisionPage() {
         wsRef.current = ws
     }
 
-    // --- Cámara ---
+    // Solicita acceso a la cámara y muestra el video en pantalla. Se configura para usar la cámara trasera con una resolución adecuada para el reconocimiento.
     const startCamera = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -126,7 +135,7 @@ export default function RetransmisionPage() {
         }
     }
 
-    // --- Calibración ---
+    // Captura un frame del video, lo envía al backend para calibrar el tablero y procesa la respuesta para actualizar el estado de calibración.
     const calibrar = async () => {
         if (!videoRef.current) return
         setStatus("Calibrando...")
@@ -139,7 +148,7 @@ export default function RetransmisionPage() {
             const res = await authFetch('/vision/recognize-board', {
                 method: 'POST',
                 body: fd,
-                headers: {} // Evitar Content-Type JSON
+                headers: {}
             })
             const data = await res.json()
 
@@ -152,12 +161,12 @@ export default function RetransmisionPage() {
                 setStatus("Calibración fallida — ajusta el encuadre")
                 addLog("Error calibración: " + data.error)
             }
-        } catch (err) {
+        } catch {
             addLog("Error de red en calibración")
         }
     }
 
-    // --- Bucle de detección ---
+    // Cuando el modo automático está activo, se inicia un intervalo que llama a detectMove cada 500ms para detectar movimientos en tiempo real.
     useEffect(() => {
         if (isAutoMode) {
             setStatus("Escuchando...")
@@ -169,6 +178,8 @@ export default function RetransmisionPage() {
         return () => clearInterval(intervalRef.current)
     }, [isAutoMode, isCalibrated])
 
+    // Función principal para detectar movimientos. 
+    // Captura un frame, lo envía al backend y procesa la respuesta para actualizar el estado del juego y enviar actualizaciones a los espectadores.
     const detectMove = async () => {
         if (detectingRef.current) return
         detectingRef.current = true
@@ -194,14 +205,12 @@ export default function RetransmisionPage() {
                 return
             }
 
-            // Dibujar overlay visual
             drawOverlay(data.board_state)
 
             if (data.found) {
                 missCountRef.current = 0
                 const move = data.move
                 
-                // Aplicar a la lógica local
                 try {
                     game.current.move(move.uci)
                 } catch (e) {
@@ -214,13 +223,11 @@ export default function RetransmisionPage() {
                 setStatus(`Movimiento: ${move.san}`)
                 addLog(`${move.san} · ${move.type} · ${(data.confidence_avg * 100).toFixed(0)}%`)
 
-                // Badge especial
                 if (["castling_short", "castling_long", "en_passant", "promotion"].includes(move.type)) {
                     setSpecialMove(move.type)
                     setTimeout(() => setSpecialMove(null), 3000)
                 }
 
-                // Emitir por WS
                 if (wsRef.current?.readyState === WebSocket.OPEN) {
                     wsRef.current.send(JSON.stringify({
                         fen: data.new_fen,
@@ -242,6 +249,7 @@ export default function RetransmisionPage() {
         }
     }
 
+    // Función auxiliar para capturar un frame del video y convertirlo en un blob que se puede enviar al backend para procesamiento.
     const captureFrame = () => {
         return new Promise(resolve => {
             const canvas = document.createElement('canvas')
@@ -252,6 +260,7 @@ export default function RetransmisionPage() {
         })
     }
 
+    // Función para dibujar un overlay sobre el video que muestra el estado actual del tablero, incluyendo las piezas detectadas y resaltando el último movimiento.
     const drawOverlay = (boardState) => {
         const ctx = canvasRef.current?.getContext('2d')
         if (!ctx || !videoRef.current) return
@@ -260,11 +269,6 @@ export default function RetransmisionPage() {
         const h = canvasRef.current.height
         ctx.clearRect(0, 0, w, h)
 
-        // Aquí pintaríamos la cuadrícula proyectada si tuviéramos las esquinas en boardState,
-        // pero por ahora pintamos etiquetas simbólicas sobre un grid 8x8 relativo al centro
-        // para dar feedback visual. (En un sistema real, el backend devolvería las esquinas 
-        // detectadas para pintar el polígono exacto).
-        // Simplificamos: grid centrado
         ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"
         ctx.lineWidth = 1
         const size = Math.min(w, h) * 0.8
@@ -277,7 +281,6 @@ export default function RetransmisionPage() {
             ctx.beginPath(); ctx.moveTo(x0, y0 + i * cell); ctx.lineTo(x0 + size, y0 + i * cell); ctx.stroke()
         }
 
-        // Si hay piezas detectadas, las marcamos
         if (boardState) {
             Object.entries(boardState).forEach(([sq, val]) => {
                 if (val.label !== 'empty') {
@@ -297,11 +300,15 @@ export default function RetransmisionPage() {
         }
     }
 
+    // Función para agregar mensajes al log técnico que se muestra en la interfaz. 
+    // Mantiene un historial de los últimos 5 eventos para ayudar al usuario a entender lo que está sucediendo.
     const addLog = (msg) => {
         const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
         setLogs(prev => [{ time, msg }, ...prev].slice(0, 5))
     }
 
+    // Función para finalizar la retransmisión. 
+    // Pregunta al usuario por confirmación, luego desactiva la retransmisión en el backend y guarda la partida en el historial del usuario.
     const finalizeGame = async () => {
         if (!confirm("¿Deseas finalizar la retransmisión y guardar la partida?")) return
         
@@ -323,11 +330,12 @@ export default function RetransmisionPage() {
 
             addLog("Partida guardada con éxito")
             setTimeout(() => navigate('/games'), 2000)
-        } catch (err) {
+        } catch {
             addLog("Error al guardar")
         }
     }
 
+    // Función para copiar el enlace de la retransmisión al portapapeles. Muestra un mensaje de confirmación temporal cuando se copia correctamente.
     const copyUrl = () => {
         const url = `${window.location.origin}/retransmision/${token}`
         navigator.clipboard.writeText(url)

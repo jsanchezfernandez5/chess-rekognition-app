@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+/* Tipografía para el PGN */
 @font-face {
     font-family: "Figurine";
     src:
@@ -11,6 +12,7 @@
     font-style: normal;
 }
 
+/* Colores coporativos */
 @theme {
     --color-cr-bg: #f3f6fa;
     --color-cr-surface: #ffffff;
@@ -27,6 +29,7 @@
     --font-display: Georgia, Cambria, "Times New Roman", Times, serif;
     --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
+    /* Animaciones */
     --animate-blink: blink 1.1s step-start infinite;
 
     --font-figurine: "Figurine", serif;
@@ -44,6 +47,7 @@
     }
 }
 
+/* Estilos base */
 @layer base {
 
     *,

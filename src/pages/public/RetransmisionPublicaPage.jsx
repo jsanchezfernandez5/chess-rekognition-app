@@ -2,14 +2,27 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Chessboard } from 'react-chessboard'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Radio, ChevronLeft, LayoutDashboard, ExternalLink } from 'lucide-react'
+import { Radio, ChevronLeft, LayoutDashboard } from 'lucide-react'
 import Button from '@/components/ui/Button'
 
+/**
+ * Página de retransmisión pública de una partida de ajedrez.
+ * Permite a los usuarios seguir una partida en tiempo real mediante un token de acceso.
+ * Se conecta a un WebSocket para recibir actualizaciones de la partida (FEN, PGN, último movimiento).
+ * Muestra el tablero de ajedrez, el historial de jugadas y notificaciones de jugadas especiales.
+ * Detecta cuando la retransmisión ha finalizado para mostrar un mensaje al usuario.
+ * 
+ * Rutas:
+ * - /retransmision/:token: Retransmisión pública de una partida mediante token (pública)
+ * - /*: Página 404 para rutas no encontradas
+ * 
+ * El componente raíz de la aplicación (App.jsx) envuelve este enrutador con el proveedor de autenticación para 
+ * que el estado de autenticación esté disponible en toda la aplicación. 
+ */
 export default function RetransmisionPublicaPage() {
     const { token } = useParams()
     const navigate = useNavigate()
     
-    // --- Estado de la partida ---
     const [currentFen, setCurrentFen] = useState('start')
     const [pgn, setPgn] = useState('')
     const [lastMove, setLastMove] = useState(null)
@@ -17,7 +30,6 @@ export default function RetransmisionPublicaPage() {
     const [isConnected, setIsConnected] = useState(false)
     const [isFinished, setIsFinished] = useState(false)
     
-    // --- WebSocket ---
     const wsRef = useRef(null)
 
     useEffect(() => {
@@ -37,7 +49,6 @@ export default function RetransmisionPublicaPage() {
             if (data.pgn) setPgn(data.pgn)
             if (data.last_move) setLastMove(data.last_move)
             
-            // Mostrar badge si es una jugada especial
             if (data.move_type && !['normal', 'capture'].includes(data.move_type)) {
                 setMoveType(data.move_type)
                 setTimeout(() => setMoveType(null), 3000)
@@ -53,12 +64,9 @@ export default function RetransmisionPublicaPage() {
         return () => ws.close()
     }, [token])
 
-    // Helper para formatear PGN
     const parsePgn = (pgnString) => {
         if (!pgnString) return []
-        // Extraer solo los movimientos (quitar cabeceras [])
         const rawMoves = pgnString.replace(/\[.*?\]/g, '').trim()
-        // Dividir por números de jugada 1. e4 e5 -> ["e4 e5", "Nf3 Nc6"...]
         const moves = rawMoves.split(/\d+\.\s+/).filter(Boolean)
         return moves.map(m => m.trim())
     }
@@ -118,7 +126,7 @@ export default function RetransmisionPublicaPage() {
 
                     {/* Tablero Principal */}
                     <div className="relative bg-cr-surface p-6 rounded-3xl border border-cr-border shadow-xl">
-                        <div className="aspect-square w-full max-w-[500px] mx-auto">
+                        <div className="aspect-square w-full max-w-125 mx-auto">
                             <Chessboard 
                                 position={currentFen} 
                                 arePiecesDraggable={false}
@@ -152,7 +160,7 @@ export default function RetransmisionPublicaPage() {
                             <Radio size={16} className="text-cr-primary animate-pulse" />
                             <span className="font-bold text-xs uppercase tracking-widest text-cr-text">Retransmisión PGN</span>
                         </div>
-                        <div className="p-8 font-figurine text-2xl leading-relaxed text-cr-text min-h-[120px]">
+                        <div className="p-8 font-figurine text-2xl leading-relaxed text-cr-text min-h-30">
                             {pgn ? (
                                 <div className="flex flex-wrap gap-x-8 gap-y-3">
                                     {parsePgn(pgn).map((movePair, i) => (
@@ -171,9 +179,9 @@ export default function RetransmisionPublicaPage() {
                         </div>
                     </div>
 
-                    {/* Footer / Info */}
+                    {/* Footer */}
                     <footer className="pt-8 text-center">
-                        <p className="text-[10px] text-cr-muted uppercase tracking-[0.2em]">Powered by Chess Rekognition Engine v1.0</p>
+                        <p className="text-[10px] text-cr-muted uppercase tracking-[0.2em]">Chess Rekognition</p>
                     </footer>
                 </main>
             </div>
