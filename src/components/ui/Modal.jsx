@@ -6,6 +6,8 @@ import { X } from 'lucide-react'
  * Construido sobre Framer Motion (AnimatePresence) para transiciones suaves.
  */
 export default function Modal({ isOpen, onClose, title, children, maxWidth = 'max-w-md' }) {
+    // El Modal se muestra solo cuando isOpen es true. 
+    // El overlay y el contenido del modal tienen animaciones de entrada y salida definidas por Framer Motion.
     return (
         <AnimatePresence>
             {isOpen && (

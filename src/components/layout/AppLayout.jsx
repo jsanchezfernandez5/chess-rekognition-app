@@ -48,7 +48,7 @@ export default function AppLayout({ children }) {
     return (
         <div className="flex min-h-screen bg-[#F0F2F5]">
 
-            {/* ── Barra Superior (Header) ── */}
+            {/* Barra Superior (Header) */}
             <header className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-white border-b border-gray-200 z-30 flex items-center justify-between px-4 md:px-6 shadow-sm">
                 <div className="flex items-center gap-3">
                     {/* Botón Hamburger para abrir el Sidebar */}

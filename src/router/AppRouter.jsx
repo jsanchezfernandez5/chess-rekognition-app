@@ -5,8 +5,6 @@
  * Incluye rutas públicas (login, registro) y privadas (dashboard, gestión de partidas). 
  * También maneja rutas para retransmisiones públicas y una página 404 para rutas no encontradas.
  * 
- * La función Loader muestra un spinner de carga mientras se verifica el estado de autenticación. PrivateRoute y PublicRoute son componentes de orden superior que controlan el acceso a las rutas según el estado de autenticación del usuario.
- * 
  * Rutas definidas:
  * - /login: Página de inicio de sesión (pública)
  * - /register: Página de registro (pública)

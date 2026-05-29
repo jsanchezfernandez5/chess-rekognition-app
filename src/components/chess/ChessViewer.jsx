@@ -113,7 +113,7 @@ export default function ChessViewer({ partida }) {
     // Renderizamos el tablero de ajedrez, los controles de navegación y la notación PGN de la partida.
     return (
         <div className="w-full flex flex-col items-center">
-            // Tablero de ajedrez
+            {/* Tablero de ajedrez */}
             <div className="w-full aspect-square max-w-105 shadow-2xl rounded-[30px] bg-white p-4 mb-8 border border-cr-border/10">
                 <Chessboard
                     options={{
@@ -124,7 +124,7 @@ export default function ChessViewer({ partida }) {
                 />
             </div>
 
-            // Controles de navegación y notación PGN
+            {/* Controles de navegación */}
             <div className="flex items-center gap-12 mb-10">
                 <button
                     onClick={handlePrev}

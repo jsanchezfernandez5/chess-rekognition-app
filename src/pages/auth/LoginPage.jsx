@@ -40,8 +40,8 @@ export default function LoginPage() {
         } catch (err) { setError(err.message) } finally { setLoading(false) }
     }
 
+    // El diseño de la página de login se basa en el componente AuthLayout, que centra el formulario y proporciona un estilo consistente.
     return (
-        // El diseño de la página de login se basa en el componente AuthLayout, que centra el formulario y proporciona un estilo consistente.
         <AuthLayout>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
                 <InputText

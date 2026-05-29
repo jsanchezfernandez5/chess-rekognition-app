@@ -1,34 +1,20 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Chess } from 'chess.js'
 import { Chessboard } from 'react-chessboard'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Camera, Settings, Share2, CheckCircle2, AlertCircle, History, Save, Copy, Check } from 'lucide-react'
+import { Share2, Copy, Check, ChevronRight } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { parsePgn } from '@/utils/pgnUtils'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
+import InputText from '@/components/ui/InputText'
+import Header from '@/components/layout/Header'
 
-/**
- * RetransmisionPage: Permite a los usuarios retransmitir una partida de ajedrez en vivo utilizando visión por computadora para detectar movimientos en un tablero físico.
- * 
- * Flujo principal:
- * 1. El usuario inicia la cámara y calibra el tablero.
- * 2. El sistema detecta movimientos automáticamente y actualiza el estado del juego.
- * 3. Los espectadores pueden seguir la partida en tiempo real a través de un enlace compartido.
- * 4. Al finalizar, el usuario puede guardar la partida en su historial.
- * 
- * Características destacadas:
- * - Detección automática de movimientos con feedback visual.
- * - Interfaz intuitiva para controlar la retransmisión y ver el historial de movimientos.
- * - Logs técnicos para monitorear el proceso de reconocimiento.
- * - Modal para compartir fácilmente el enlace de la retransmisión.
- */
 export default function RetransmisionPage() {
     const { authFetch } = useAuth()
     const navigate = useNavigate()
     
-    // Referencias para manejar el estado del juego, la cámara, WebSocket y otros elementos sin causar re-renderizados innecesarios.
     const game = useRef(new Chess())
     const wsRef = useRef(null)
     const intervalRef = useRef(null)
@@ -38,14 +24,12 @@ export default function RetransmisionPage() {
     const videoRef = useRef(null)
     const canvasRef = useRef(null)
 
-    // Para evitar mostrar mensajes de error en detecciones fallidas ocasionales, se permite un margen de 3 "misses" antes de alertar al usuario.
     const MISS_THRESHOLD = 3
 
-    // Estados para controlar la interfaz y el flujo de la retransmisión.
     const [isCamActive, setIsCamActive] = useState(false)
     const [isCalibrated, setIsCalibrated] = useState(false)
     const [isAutoMode, setIsAutoMode] = useState(false)
-    const [status, setStatus] = useState("Inicia la cámara para comenzar")
+    const [status, setStatus] = useState("Completa el formulario para comenzar")
     const [currentFen, setCurrentFen] = useState(game.current.fen())
     const [lastMove, setLastMove] = useState(null)
     const [pgn, setPgn] = useState("")
@@ -56,41 +40,22 @@ export default function RetransmisionPage() {
     const [logs, setLogs] = useState([])
     const [specialMove, setSpecialMove] = useState(null)
 
-    // Al montar el componente, se crea una nueva retransmisión en el backend para obtener un ID y token únicos. 
-    // Esto permite que cada sesión de retransmisión sea independiente y segura.
-    useEffect(() => {
-        let active = true
-        async function init() {
-            try {
-                const res = await authFetch('/retransmision/host', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        blancas: "Jugador Local",
-                        negras: "Oponente",
-                        evento: "Partida en vivo",
-                        tablero: "Mesa 1"
-                    })
-                })
-                const data = await res.json()
-                if (active) {
-                    setRetransmisionId(data.id_retransmision)
-                    retransmisionIdRef.current = data.id_retransmision
-                    setToken(data.token)
-                    initWebSocket(data.token)
-                }
-            } catch (err) {
-                addLog("Error al inicializar retransmisión: " + err.message)
-            }
-        }
-        init()
-        return () => { 
-            active = false
-            cleanup()
-        }
-    }, [])
+    const [isVisionActive, setIsVisionActive] = useState(false)
+    const [activeTab, setActiveTab] = useState('config')
+    const [resultado, setResultado] = useState('*')
+    const [formData, setFormData] = useState({
+        evento: '',
+        blancas: '',
+        negras: '',
+        lugar: '',
+        ronda: '',
+        tablero: ''
+    })
+    const [errors, setErrors] = useState({})
+    const [videoDevices, setVideoDevices] = useState([])
+    const [deviceIndex, setDeviceIndex] = useState(0)
 
-    // Función de limpieza para cerrar conexiones y liberar recursos al finalizar la retransmisión o desmontar el componente.
-    const cleanup = async () => {
+    const cleanup = useCallback(async () => {
         clearInterval(intervalRef.current)
         if (wsRef.current) wsRef.current.close()
         if (videoRef.current?.srcObject) {
@@ -102,48 +67,184 @@ export default function RetransmisionPage() {
                 body: JSON.stringify({ is_activa: false })
             }).catch(() => {})
         }
-    }
+    }, [authFetch])
 
-    // Inicializa la conexión WebSocket para enviar actualizaciones de estado a los espectadores en tiempo real.
-    const initWebSocket = (token) => {
+    const getDevices = useCallback(async () => {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices()
+            const videoInputs = devices.filter(d => d.kind === 'videoinput')
+            setVideoDevices(videoInputs)
+        } catch (err) {
+            console.error(err)
+        }
+    }, [])
+
+    useEffect(() => {
+        getDevices()
+        return () => {
+            cleanup()
+        }
+    }, [getDevices, cleanup])
+
+    const addLog = useCallback((msg, status = "success", data = null) => {
+        const now = new Date()
+        const day = String(now.getDate()).padStart(2, '0')
+        const month = String(now.getMonth() + 1).padStart(2, '0')
+        const year = now.getFullYear()
+        const timeStr = `${day}/${month}/${year} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
+        
+        let homografia = "correcta (64/64 casillas)"
+        let piezas = "32/32 piezas"
+        let vacias = "32/32 casillas"
+        
+        if (data) {
+            let boardState = data.board_state
+            if (data.squares) {
+                boardState = {}
+                data.squares.forEach(sq => {
+                    boardState[sq.id] = { label: sq.occupied ? 'piece' : 'empty' }
+                })
+            }
+            if (boardState) {
+                const total = Object.keys(boardState).length || 64
+                const numPieces = Object.values(boardState).filter(v => v.label !== 'empty').length
+                const numEmpty = Object.values(boardState).filter(v => v.label === 'empty').length
+                homografia = `correcta (${total}/64 casillas)`
+                piezas = `${numPieces}/32 piezas`
+                vacias = `${numEmpty}/32 casillas`
+            }
+        }
+        if (status === "error") {
+            homografia = "incorrecta (0/64 casillas)"
+            piezas = "0/32 piezas"
+            vacias = "0/32 casillas"
+        }
+        setLogs(prev => [{ time: timeStr, status, msg, homografia, piezas, vacias }, ...prev].slice(0, 5))
+    }, [])
+
+    const initWebSocket = useCallback((token) => {
         const apiUrl = import.meta.env.VITE_API_URL || 'https://chess-rekognition-api-production.up.railway.app'
         const protocol = apiUrl.startsWith('https') ? 'wss:' : 'ws:'
         const host = apiUrl.replace(/^https?:\/\//, '')
         const wsUrl = `${protocol}//${host}/retransmision/ws/host/${token}`
         const ws = new WebSocket(wsUrl)
         
-        ws.onopen = () => addLog("Canal de retransmisión abierto")
-        ws.onerror = () => addLog("Error en WebSocket")
+        ws.onopen = () => {
+            addLog("Canal de retransmisión abierto", "info")
+            ws.send(JSON.stringify({
+                evento: formData.evento,
+                blancas: formData.blancas,
+                negras: formData.negras,
+                resultado: resultado,
+                fen: game.current.fen(),
+                pgn: game.current.pgn(),
+                last_move: lastMove
+            }))
+        }
+        ws.onerror = () => addLog("Error en WebSocket", "error")
         wsRef.current = ws
-    }
+    }, [addLog, formData.evento, formData.blancas, formData.negras, resultado, lastMove])
 
-    // Solicita acceso a la cámara y muestra el video en pantalla. Se configura para usar la cámara trasera con una resolución adecuada para el reconocimiento.
-    const startCamera = async () => {
+    const startCamera = useCallback(async (deviceIdx = deviceIndex) => {
+        if (videoRef.current?.srcObject) {
+            videoRef.current.srcObject.getTracks().forEach(t => t.stop())
+        }
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment', width: 1280, height: 720 }
-            })
+            const constraints = {
+                video: { width: 1280, height: 720 }
+            }
+            if (videoDevices.length > 0 && videoDevices[deviceIdx]) {
+                constraints.video.deviceId = { exact: videoDevices[deviceIdx].deviceId }
+            } else {
+                constraints.video.facingMode = 'environment'
+            }
+            const stream = await navigator.mediaDevices.getUserMedia(constraints)
             if (videoRef.current) {
                 videoRef.current.srcObject = stream
                 setIsCamActive(true)
                 setStatus("Tablero no calibrado")
-                addLog("Cámara iniciada")
+                addLog("Cámara iniciada", "success")
             }
         } catch (err) {
-            addLog("Error de cámara: " + err.message)
+            addLog("Error de cámara: " + err.message, "error")
             setStatus("Error de cámara")
         }
-    }
+    }, [deviceIndex, videoDevices, addLog])
 
-    // Captura un frame del video, lo envía al backend para calibrar el tablero y procesa la respuesta para actualizar el estado de calibración.
-    const calibrar = async () => {
+    const stopCamera = useCallback(() => {
+        if (videoRef.current?.srcObject) {
+            videoRef.current.srcObject.getTracks().forEach(t => t.stop())
+            videoRef.current.srcObject = null
+        }
+        setIsCamActive(false)
+        setIsAutoMode(false)
+        setStatus("Cámara desactivada")
+        addLog("Cámara desactivada", "info")
+    }, [addLog])
+
+    const cambiarCamara = useCallback(async () => {
+        if (videoDevices.length <= 1) {
+            addLog("No hay otras cámaras disponibles", "error")
+            return
+        }
+        const nextIdx = (deviceIndex + 1) % videoDevices.length
+        setDeviceIndex(nextIdx)
+        await startCamera(nextIdx)
+    }, [deviceIndex, videoDevices, startCamera, addLog])
+
+    const activarVision = useCallback(async (e) => {
+        if (e) e.preventDefault()
+        const newErrors = {}
+        if (!formData.evento) newErrors.evento = 'El nombre del evento es necesario'
+        if (!formData.blancas) newErrors.blancas = 'Falta el nombre del jugador de blancas'
+        if (!formData.negras) newErrors.negras = 'Falta el nombre del jugador de negras'
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors)
+            return
+        }
+        setErrors({})
+        setStatus("Inicializando...")
+        try {
+            const res = await authFetch('/retransmision/host', {
+                method: 'POST',
+                body: JSON.stringify({
+                    blancas: formData.blancas,
+                    negras: formData.negras,
+                    evento: formData.evento,
+                    lugar: formData.lugar || null,
+                    ronda: formData.ronda ? parseInt(formData.ronda) : null,
+                    tablero: formData.tablero ? parseInt(formData.tablero) : null
+                })
+            })
+            if (!res.ok) {
+                throw new Error("Error en respuesta del servidor")
+            }
+            const data = await res.json()
+            setRetransmisionId(data.id_retransmision)
+            retransmisionIdRef.current = data.id_retransmision
+            setToken(data.token)
+            initWebSocket(data.token)
+            setIsVisionActive(true)
+            await startCamera()
+            setActiveTab('vision')
+            addLog("Visión IA activada", "success")
+        } catch (err) {
+            addLog("Error al inicializar retransmisión: " + err.message, "error")
+            setStatus("Error de inicialización")
+        }
+    }, [formData, authFetch, startCamera, initWebSocket, addLog])
+
+    const calibrar = useCallback(async () => {
         if (!videoRef.current) return
         setStatus("Calibrando...")
-        
-        const blob = await captureFrame()
+        const canvas = document.createElement('canvas')
+        canvas.width = videoRef.current.videoWidth
+        canvas.height = videoRef.current.videoHeight
+        canvas.getContext('2d').drawImage(videoRef.current, 0, 0)
+        const blob = await new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.85))
         const fd = new FormData()
         fd.append('file', blob)
-
         try {
             const res = await authFetch('/vision/recognize-board', {
                 method: 'POST',
@@ -151,106 +252,21 @@ export default function RetransmisionPage() {
                 headers: {}
             })
             const data = await res.json()
-
             if (data.success) {
                 setIsCalibrated(true)
                 setStatus("Tablero calibrado ✓")
-                addLog("Calibración exitosa")
+                addLog("Calibración exitosa", "success", data)
             } else {
                 setIsCalibrated(false)
                 setStatus("Calibración fallida — ajusta el encuadre")
-                addLog("Error calibración: " + data.error)
-            }
-        } catch {
-            addLog("Error de red en calibración")
-        }
-    }
-
-    // Cuando el modo automático está activo, se inicia un intervalo que llama a detectMove cada 500ms para detectar movimientos en tiempo real.
-    useEffect(() => {
-        if (isAutoMode) {
-            setStatus("Escuchando...")
-            intervalRef.current = setInterval(detectMove, 500)
-        } else {
-            clearInterval(intervalRef.current)
-            if (isCalibrated) setStatus("Tablero calibrado ✓")
-        }
-        return () => clearInterval(intervalRef.current)
-    }, [isAutoMode, isCalibrated])
-
-    // Función principal para detectar movimientos. 
-    // Captura un frame, lo envía al backend y procesa la respuesta para actualizar el estado del juego y enviar actualizaciones a los espectadores.
-    const detectMove = async () => {
-        if (detectingRef.current) return
-        detectingRef.current = true
-
-        try {
-            const blob = await captureFrame()
-            const fd = new FormData()
-            fd.append('file', blob)
-            fd.append('prev_fen', game.current.fen())
-
-            const res = await authFetch('/vision/detect-move', {
-                method: 'POST',
-                body: fd,
-                headers: {}
-            })
-            const data = await res.json()
-
-            if (!data.success) {
-                missCountRef.current++
-                if (missCountRef.current >= MISS_THRESHOLD) {
-                    setStatus("Mano detectada (esperando...)")
-                }
-                return
-            }
-
-            drawOverlay(data.board_state)
-
-            if (data.found) {
-                missCountRef.current = 0
-                const move = data.move
-                
-                try {
-                    game.current.move(move.uci)
-                } catch (e) {
-                    addLog("Movimiento inválido en la lógica local: " + e.message)
-                    return
-                }
-                setCurrentFen(data.new_fen)
-                setPgn(game.current.pgn())
-                setLastMove({ from: move.from, to: move.to })
-                setStatus(`Movimiento: ${move.san}`)
-                addLog(`${move.san} · ${move.type} · ${(data.confidence_avg * 100).toFixed(0)}%`)
-
-                if (["castling_short", "castling_long", "en_passant", "promotion"].includes(move.type)) {
-                    setSpecialMove(move.type)
-                    setTimeout(() => setSpecialMove(null), 3000)
-                }
-
-                if (wsRef.current?.readyState === WebSocket.OPEN) {
-                    wsRef.current.send(JSON.stringify({
-                        fen: data.new_fen,
-                        pgn: game.current.pgn(),
-                        last_move: { from: move.from, to: move.to },
-                        move_type: move.type
-                    }))
-                }
-            } else {
-                missCountRef.current++
-                if (missCountRef.current >= MISS_THRESHOLD) {
-                    setStatus("Posición incierta — confirma manualmente")
-                }
+                addLog("Error calibración: " + data.error, "error")
             }
         } catch (err) {
-            console.error(err)
-        } finally {
-            detectingRef.current = false
+            addLog("Error de red en calibración: " + err.message, "error")
         }
-    }
+    }, [authFetch, addLog])
 
-    // Función auxiliar para capturar un frame del video y convertirlo en un blob que se puede enviar al backend para procesamiento.
-    const captureFrame = () => {
+    const captureFrame = useCallback(() => {
         return new Promise(resolve => {
             const canvas = document.createElement('canvas')
             canvas.width = videoRef.current.videoWidth
@@ -258,29 +274,24 @@ export default function RetransmisionPage() {
             canvas.getContext('2d').drawImage(videoRef.current, 0, 0)
             canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.85)
         })
-    }
+    }, [])
 
-    // Función para dibujar un overlay sobre el video que muestra el estado actual del tablero, incluyendo las piezas detectadas y resaltando el último movimiento.
-    const drawOverlay = (boardState) => {
+    const drawOverlay = useCallback((boardState) => {
         const ctx = canvasRef.current?.getContext('2d')
         if (!ctx || !videoRef.current) return
-
         const w = canvasRef.current.width
         const h = canvasRef.current.height
         ctx.clearRect(0, 0, w, h)
-
         ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"
         ctx.lineWidth = 1
         const size = Math.min(w, h) * 0.8
         const x0 = (w - size) / 2
         const y0 = (h - size) / 2
         const cell = size / 8
-
         for (let i = 0; i <= 8; i++) {
             ctx.beginPath(); ctx.moveTo(x0 + i * cell, y0); ctx.lineTo(x0 + i * cell, y0 + size); ctx.stroke()
             ctx.beginPath(); ctx.moveTo(x0, y0 + i * cell); ctx.lineTo(x0 + size, y0 + i * cell); ctx.stroke()
         }
-
         if (boardState) {
             Object.entries(boardState).forEach(([sq, val]) => {
                 if (val.label !== 'empty') {
@@ -288,7 +299,6 @@ export default function RetransmisionPage() {
                     const row = 8 - parseInt(sq[1])
                     const cx = x0 + col * cell + cell / 2
                     const cy = y0 + row * cell + cell / 2
-                    
                     ctx.fillStyle = val.label.startsWith('w') ? "rgba(230, 239, 250, 0.8)" : "rgba(32, 78, 173, 0.8)"
                     ctx.beginPath(); ctx.arc(cx, cy, cell * 0.3, 0, Math.PI * 2); ctx.fill()
                     ctx.fillStyle = val.label.startsWith('w') ? "#204ead" : "#ffffff"
@@ -298,200 +308,495 @@ export default function RetransmisionPage() {
                 }
             })
         }
-    }
+    }, [])
 
-    // Función para agregar mensajes al log técnico que se muestra en la interfaz. 
-    // Mantiene un historial de los últimos 5 eventos para ayudar al usuario a entender lo que está sucediendo.
-    const addLog = (msg) => {
-        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-        setLogs(prev => [{ time, msg }, ...prev].slice(0, 5))
-    }
+    const detectMove = useCallback(async () => {
+        if (detectingRef.current) return
+        detectingRef.current = true
+        try {
+            const blob = await captureFrame()
+            const fd = new FormData()
+            fd.append('file', blob)
+            fd.append('prev_fen', game.current.fen())
+            const res = await authFetch('/vision/detect-move', {
+                method: 'POST',
+                body: fd,
+                headers: {}
+            })
+            const data = await res.json()
+            if (!data.success) {
+                missCountRef.current++
+                if (missCountRef.current >= MISS_THRESHOLD) {
+                    setStatus("Mano detectada (esperando...)")
+                }
+                return
+            }
+            drawOverlay(data.board_state)
+            if (data.found) {
+                missCountRef.current = 0
+                const move = data.move
+                try {
+                    game.current.move(move.uci)
+                } catch (e) {
+                    addLog("Movimiento inválido local: " + e.message, "error")
+                    return
+                }
+                setCurrentFen(data.new_fen)
+                setPgn(game.current.pgn())
+                setLastMove({ from: move.from, to: move.to })
+                setStatus(`Movimiento: ${move.san}`)
+                addLog(`${move.san} · ${move.type} · ${(data.confidence_avg * 100).toFixed(0)}%`, "success", data)
+                if (["castling_short", "castling_long", "en_passant", "promotion"].includes(move.type)) {
+                    setSpecialMove(move.type)
+                    setTimeout(() => setSpecialMove(null), 3000)
+                }
+                if (wsRef.current?.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(JSON.stringify({
+                        fen: data.new_fen,
+                        pgn: game.current.pgn(),
+                        last_move: { from: move.from, to: move.to },
+                        move_type: move.type,
+                        evento: formData.evento,
+                        blancas: formData.blancas,
+                        negras: formData.negras,
+                        resultado: resultado
+                    }))
+                }
+            } else {
+                missCountRef.current++
+                if (missCountRef.current >= MISS_THRESHOLD) {
+                    setStatus("Posición incierta — confirma manualmente")
+                }
+                addLog("Posición incierta / mano detectada", "error")
+            }
+        } catch (err) {
+            console.error(err)
+        } finally {
+            detectingRef.current = false
+        }
+    }, [authFetch, captureFrame, drawOverlay, addLog, formData.evento, formData.blancas, formData.negras, resultado])
 
-    // Función para finalizar la retransmisión. 
-    // Pregunta al usuario por confirmación, luego desactiva la retransmisión en el backend y guarda la partida en el historial del usuario.
-    const finalizeGame = async () => {
+    useEffect(() => {
+        if (isAutoMode) {
+            setStatus("Escuchando...")
+            intervalRef.current = setInterval(detectMove, 500)
+        } else {
+            clearInterval(intervalRef.current)
+            if (isCalibrated) setStatus("Tablero calibrado ✓")
+        }
+        return () => clearInterval(intervalRef.current)
+    }, [isAutoMode, isCalibrated, detectMove])
+
+    useEffect(() => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+                evento: formData.evento,
+                blancas: formData.blancas,
+                negras: formData.negras,
+                resultado: resultado,
+                fen: game.current.fen(),
+                pgn: game.current.pgn(),
+                last_move: lastMove
+            }))
+        }
+    }, [resultado, formData.evento, formData.blancas, formData.negras, lastMove])
+
+    const finalizeGame = useCallback(async () => {
         if (!confirm("¿Deseas finalizar la retransmisión y guardar la partida?")) return
-        
         try {
             await authFetch(`/retransmision/${retransmisionId}`, {
                 method: 'PATCH',
                 body: JSON.stringify({ is_activa: false })
             })
-            
+            const payload = {
+                evento: formData.evento,
+                blancas: formData.blancas,
+                negras: formData.negras,
+                fecha: new Date().toISOString().split('T')[0],
+                resultado: resultado,
+                pgn: game.current.pgn(),
+                tipo_partida: 'PR',
+                ronda: formData.ronda ? parseInt(formData.ronda) : null,
+                tablero: formData.tablero ? parseInt(formData.tablero) : null,
+                lugar: formData.lugar || null,
+                observaciones: null
+            }
             await authFetch('/partidas', {
                 method: 'POST',
-                body: JSON.stringify({
-                    blancas: "Jugador Local",
-                    negras: "Oponente",
-                    pgn: game.current.pgn(),
-                    tipo: "PR"
-                })
+                body: JSON.stringify(payload)
             })
-
-            addLog("Partida guardada con éxito")
+            addLog("Partida guardada con éxito", "success")
             setTimeout(() => navigate('/games'), 2000)
         } catch {
-            addLog("Error al guardar")
+            addLog("Error al guardar", "error")
         }
-    }
+    }, [retransmisionId, formData, resultado, authFetch, addLog, navigate])
 
-    // Función para copiar el enlace de la retransmisión al portapapeles. Muestra un mensaje de confirmación temporal cuando se copia correctamente.
-    const copyUrl = () => {
+    const copyUrl = useCallback(() => {
         const url = `${window.location.origin}/retransmision/${token}`
         navigator.clipboard.writeText(url)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
+    }, [token])
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target
+        setFormData(prev => ({ ...prev, [name]: value }))
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: null }))
+        }
     }
 
-    return (
-        <div className="max-w-7xl mx-auto px-4 py-8">
-            <div className="flex flex-col lg:flex-row gap-8">
-                
-                {/* --- COLUMNA IZQUIERDA: CÁMARA --- */}
-                <div className="lg:w-2/3">
-                    <div className="relative rounded-xl overflow-hidden bg-black aspect-video shadow-xl border border-cr-border">
-                        <video 
-                            ref={videoRef}
-                            autoPlay 
-                            playsInline 
-                            muted
-                            className="w-full h-full object-cover"
+    const renderConfigForm = () => {
+        return (
+            <form onSubmit={activarVision} className="flex flex-col gap-5 flex-1 justify-between">
+                <div className="flex flex-col gap-4">
+                    <InputText
+                        id="evento"
+                        name="evento"
+                        label="Evento *"
+                        placeholder="Ej. Torneo UOC 2026"
+                        value={formData.evento}
+                        onChange={handleInputChange}
+                        error={errors.evento}
+                        disabled={isVisionActive}
+                    />
+                    <InputText
+                        id="blancas"
+                        name="blancas"
+                        label="Blancas *"
+                        placeholder="Nombre completo"
+                        value={formData.blancas}
+                        onChange={handleInputChange}
+                        error={errors.blancas}
+                        disabled={isVisionActive}
+                    />
+                    <InputText
+                        id="negras"
+                        name="negras"
+                        label="Negras *"
+                        placeholder="Nombre completo"
+                        value={formData.negras}
+                        onChange={handleInputChange}
+                        error={errors.negras}
+                        disabled={isVisionActive}
+                    />
+                    <InputText
+                        id="lugar"
+                        name="lugar"
+                        label="Lugar"
+                        placeholder="Ej. Club de Ajedrez"
+                        value={formData.lugar}
+                        onChange={handleInputChange}
+                        disabled={isVisionActive}
+                    />
+                    <div className="flex gap-4">
+                        <InputText
+                            id="ronda"
+                            name="ronda"
+                            label="Ronda"
+                            placeholder="Ej. 1"
+                            value={formData.ronda}
+                            onChange={handleInputChange}
+                            disabled={isVisionActive}
+                            className="flex-1"
                         />
-                        <canvas 
-                            ref={canvasRef}
-                            width={1280}
-                            height={720}
-                            className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                        <InputText
+                            id="tablero"
+                            name="tablero"
+                            label="Tablero"
+                            placeholder="Ej. 5"
+                            value={formData.tablero}
+                            onChange={handleInputChange}
+                            disabled={isVisionActive}
+                            className="flex-1"
                         />
-                        
-                        {/* Overlay de estado */}
-                        <div className="absolute top-4 left-4 flex gap-2">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium backdrop-blur-md flex items-center gap-1.5 ${
-                                isCalibrated ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
-                            }`}>
-                                {isCalibrated ? <CheckCircle2 size={12}/> : <AlertCircle size={12}/>}
-                                {isCalibrated ? "Calibrado" : "Sin calibrar"}
+                    </div>
+                </div>
+                <div className="pt-4">
+                    <Button
+                        type="submit"
+                        disabled={isVisionActive}
+                        variant="primary"
+                        className="w-full h-12 uppercase tracking-widest text-xs font-black shadow-lg"
+                    >
+                        {isVisionActive ? "Visión IA Activa" : "Activar Visión IA"}
+                    </Button>
+                </div>
+            </form>
+        )
+    }
+
+    const renderVisionArea = () => {
+        return (
+            <div className="flex flex-col gap-6 flex-1">
+                <div className="relative rounded-2xl overflow-hidden bg-black aspect-video shadow-md border border-cr-border">
+                    <video 
+                        ref={videoRef}
+                        autoPlay 
+                        playsInline 
+                        muted
+                        className="w-full h-full object-cover"
+                    />
+                    <canvas 
+                        ref={canvasRef}
+                        width={1280}
+                        height={720}
+                        className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                    />
+                    <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md flex items-center gap-1.5 ${
+                            isCalibrated ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                        }`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${isCalibrated ? 'bg-green-400' : 'bg-red-400'}`} />
+                            ESTADO
+                        </span>
+                        {isAutoMode && (
+                            <span className="px-3 py-1 bg-red-500/20 text-red-300 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md border border-red-500/30 animate-pulse flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 bg-red-400 rounded-full" />
+                                EN VIVO
                             </span>
-                            {isAutoMode && (
-                                <span className="px-3 py-1 bg-cr-primary/40 text-blue-100 rounded-full text-xs font-medium backdrop-blur-md border border-cr-primary/30 animate-pulse flex items-center gap-1.5">
-                                    <div className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
-                                    En vivo
-                                </span>
-                            )}
-                        </div>
-
-                        {/* Special Move Badge */}
-                        <AnimatePresence>
-                            {specialMove && (
-                                <motion.div 
-                                    initial={{ scale: 0.8, opacity: 0, y: 20 }}
-                                    animate={{ scale: 1, opacity: 1, y: 0 }}
-                                    exit={{ scale: 0.8, opacity: 0 }}
-                                    className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-cr-primary text-white px-6 py-3 rounded-xl shadow-2xl font-bold flex items-center gap-3 border-2 border-white/20"
-                                >
-                                    <span className="text-2xl">♟</span>
-                                    {specialMove.replace('_', ' ').toUpperCase()}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-
-                    {/* Controles */}
-                    <div className="mt-6 flex flex-wrap items-center gap-4 bg-cr-surface p-5 rounded-2xl border border-cr-border shadow-sm">
-                        {!isCamActive ? (
-                            <Button onClick={startCamera} variant="primary" className="flex items-center gap-2">
-                                <Camera size={18} /> Iniciar cámara
-                            </Button>
-                        ) : (
-                            <Button onClick={calibrar} variant="secondary" className="flex items-center gap-2">
-                                <Settings size={18} /> Calibrar tablero
-                            </Button>
                         )}
-
-                        <div className="h-8 w-px bg-cr-border hidden sm:block" />
-
-                        <div className="flex items-center gap-3 ml-auto">
-                            <span className="text-sm font-medium text-cr-muted">Reconocimiento</span>
-                            <button 
-                                onClick={() => isCalibrated && setIsAutoMode(!isAutoMode)}
-                                disabled={!isCalibrated}
-                                className={`w-12 h-6 rounded-full transition-colors relative ${
-                                    !isCalibrated ? 'bg-gray-200 cursor-not-allowed' : (isAutoMode ? 'bg-cr-primary' : 'bg-gray-300')
-                                }`}
-                            >
-                                <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${isAutoMode ? 'translate-x-6' : ''}`} />
-                            </button>
-                        </div>
                     </div>
-
-                    {/* Info Status */}
-                    <div className="mt-4 p-4 bg-cr-primary-light rounded-xl border border-cr-primary/10 flex items-center gap-3">
+                    <AnimatePresence>
+                        {specialMove && (
+                            <motion.div 
+                                initial={{ scale: 0.8, opacity: 0, y: 20 }}
+                                animate={{ scale: 1, opacity: 1, y: 0 }}
+                                exit={{ scale: 0.8, opacity: 0 }}
+                                className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-cr-primary text-white px-4 py-2 rounded-xl shadow-lg font-bold text-xs flex items-center gap-2 border border-white/15"
+                            >
+                                <span>♟</span>
+                                {specialMove.replace('_', ' ').toUpperCase()}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+                {status && (
+                    <div className="p-3 bg-cr-primary-light rounded-xl border border-cr-primary/10 flex items-center gap-3 text-xs">
                         <div className={`w-2 h-2 rounded-full ${isAutoMode ? 'bg-cr-primary animate-pulse' : 'bg-cr-muted'}`} />
                         <span className="text-cr-primary font-medium">{status}</span>
                     </div>
+                )}
+                <div className="flex gap-4">
+                    <Button 
+                        onClick={cambiarCamara} 
+                        disabled={!isVisionActive} 
+                        variant="secondary" 
+                        className="flex-1 text-xs py-3 font-bold"
+                    >
+                        Cambiar cámara
+                    </Button>
+                    <Button 
+                        onClick={isCamActive ? stopCamera : () => startCamera()} 
+                        disabled={!isVisionActive} 
+                        variant="secondary" 
+                        className="flex-1 text-xs py-3 font-bold"
+                    >
+                        {isCamActive ? "Parar Cámara" : "Iniciar Cámara"}
+                    </Button>
                 </div>
-
-                {/* --- COLUMNA DERECHA: TABLERO + CONSOLA --- */}
-                <div className="lg:w-1/3 flex flex-col gap-6">
-                    
-                    {/* Mini tablero de visualización */}
-                    <div className="bg-cr-surface p-4 rounded-2xl border border-cr-border shadow-sm overflow-hidden">
-                        <div className="aspect-square w-full">
-                            <Chessboard 
-                                position={currentFen} 
-                                arePiecesDraggable={false}
-                                customSquareStyles={{
-                                    ...(lastMove && {
-                                        [lastMove.from]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' },
-                                        [lastMove.to]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' }
-                                    })
-                                }}
-                            />
-                        </div>
+                {isCamActive && (
+                    <Button
+                        onClick={calibrar}
+                        variant="primary"
+                        className="w-full text-xs font-bold py-3"
+                    >
+                        Calibrar tablero
+                    </Button>
+                )}
+                <div className="flex items-center justify-between p-3 bg-cr-surface2 rounded-xl border border-cr-border">
+                    <div className="flex flex-col">
+                        <span className="text-xs font-bold text-cr-text">Detección Automática</span>
+                        <span className="text-[10px] text-cr-muted">Buscar movimientos cada 500ms</span>
                     </div>
-
-                    {/* PGN / Historial */}
-                    <div className="bg-cr-surface rounded-2xl border border-cr-border shadow-sm flex flex-col h-64">
-                        <div className="p-4 border-b border-cr-border flex items-center gap-2">
-                            <History size={16} className="text-cr-primary"/>
-                            <span className="font-bold text-sm uppercase tracking-wider">Historial</span>
-                        </div>
-                        <div className="p-4 overflow-y-auto flex-1 font-figurine text-lg leading-relaxed bg-cr-surface2">
-                            <div className="flex flex-wrap gap-x-6 gap-y-2">
+                    <button 
+                        type="button"
+                        onClick={() => isCalibrated && setIsAutoMode(!isAutoMode)}
+                        disabled={!isCalibrated}
+                        className={`w-10 h-5 rounded-full transition-colors relative outline-none ${
+                            !isCalibrated ? 'bg-gray-200 cursor-not-allowed' : (isAutoMode ? 'bg-cr-primary' : 'bg-gray-300')
+                        }`}
+                    >
+                        <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${isAutoMode ? 'translate-x-5' : ''}`} />
+                    </button>
+                </div>
+                <div className="flex flex-col gap-2">
+                    <label className="text-[11px] font-semibold uppercase tracking-widest text-cr-muted">Notación PGN</label>
+                    <div className="w-full h-32 p-4 bg-cr-surface2 border border-cr-border rounded-2xl overflow-y-auto">
+                        {pgn ? (
+                            <div className="flex flex-wrap gap-x-4 gap-y-1.5 font-figurine text-lg leading-relaxed text-cr-text">
                                 {parsePgn(pgn).map((move, i) => (
-                                    <div key={i} className={`px-2 py-1 rounded ${i === parsePgn(pgn).length - 1 ? 'bg-cr-primary-light text-cr-primary' : ''}`}>
-                                        <span className="text-cr-muted mr-2">{i + 1}.</span>
+                                    <div key={i} className={`px-1.5 py-0.5 rounded ${i === parsePgn(pgn).length - 1 ? 'bg-cr-primary-light text-cr-primary' : ''}`}>
+                                        <span className="text-cr-muted mr-1.5 text-xs font-sans italic">{i + 1}.</span>
                                         {move}
                                     </div>
                                 ))}
                             </div>
+                        ) : (
+                            <span className="text-xs text-cr-muted italic">Esperando jugadas...</span>
+                        )}
+                    </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                    <label className="text-[11px] font-semibold uppercase tracking-widest text-cr-muted">Resultado</label>
+                    <div className="relative group">
+                        <select
+                            value={resultado}
+                            onChange={(e) => setResultado(e.target.value)}
+                            disabled={!isVisionActive}
+                            className="w-full h-12 appearance-none bg-cr-surface2 border border-cr-primary/15 focus:border-cr-primary rounded-xl px-4 text-sm font-bold text-cr-text transition-all outline-hidden cursor-pointer animate-none"
+                        >
+                            <option value="*">En juego...</option>
+                            <option value="1-0">1-0 (Blancas ganan)</option>
+                            <option value="0-1">0-1 (Negras ganan)</option>
+                            <option value="1/2-1/2">1/2-1/2 (Tablas)</option>
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-cr-muted pointer-events-none group-hover:text-cr-primary transition-colors">
+                            ▼
                         </div>
                     </div>
+                </div>
+                <div className="flex flex-col gap-3 pt-2 mt-auto">
+                    <Button 
+                        onClick={() => setShowShareModal(true)} 
+                        disabled={!token} 
+                        variant="primary" 
+                        className="w-full h-12 text-xs font-black uppercase tracking-widest shadow-md flex items-center justify-center gap-2"
+                    >
+                        <Share2 size={16} />
+                        Compartir Retransmisión
+                    </Button>
+                    <Button 
+                        onClick={finalizeGame} 
+                        disabled={!isVisionActive} 
+                        variant="primary" 
+                        className="w-full h-12 text-xs font-black uppercase tracking-widest shadow-md bg-rose-600 hover:bg-rose-700 shadow-rose-600/10 hover:shadow-rose-700/20"
+                    >
+                        Finalizar Retransmisión
+                    </Button>
+                </div>
+            </div>
+        )
+    }
 
-                    {/* Logs técnicos */}
-                    <div className="bg-cr-surface2 p-4 rounded-xl border border-cr-border font-mono text-[10px] h-32 overflow-hidden">
-                        {logs.length === 0 && <span className="text-cr-muted">Esperando actividad...</span>}
-                        {logs.map((log, i) => (
-                            <div key={i} className="mb-1">
-                                <span className="text-cr-muted mr-2">[{log.time}]</span>
-                                <span>{log.msg}</span>
-                            </div>
-                        ))}
+    const renderConsoleArea = () => {
+        return (
+            <div className="flex flex-col gap-6 flex-1">
+                <div className="flex flex-col gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-cr-muted">Tablero rectificado (vista cenital)</span>
+                    <div className="bg-cr-surface p-4 rounded-2xl border border-cr-border shadow-sm aspect-square w-full max-w-[280px] mx-auto overflow-hidden">
+                        <Chessboard 
+                            position={currentFen} 
+                            arePiecesDraggable={false}
+                            customSquareStyles={{
+                                ...(lastMove && {
+                                    [lastMove.from]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' },
+                                    [lastMove.to]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' }
+                                })
+                            }}
+                        />
                     </div>
-
-                    {/* Acciones finales */}
-                    <div className="flex gap-3">
-                        <Button onClick={() => setShowShareModal(true)} variant="ghost" className="flex-1 border border-cr-border">
-                            <Share2 size={18} /> Compartir
-                        </Button>
-                        <Button onClick={finalizeGame} variant="primary" className="flex-1">
-                            <Save size={18} /> Finalizar
-                        </Button>
+                </div>
+                <div className="flex flex-col gap-2 flex-1">
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-cr-muted">Registro de actividad</span>
+                    <div className="bg-cr-surface2 p-4 rounded-2xl border border-cr-border font-mono text-[11px] h-60 overflow-y-auto space-y-4 flex-1">
+                        {logs.length === 0 ? (
+                            <span className="text-cr-muted italic">Esperando actividad...</span>
+                        ) : (
+                            logs.map((log, i) => (
+                                <div key={i} className={`leading-relaxed border-b border-cr-border/40 pb-3 last:border-0 ${
+                                    log.status === 'success' ? 'text-green-600' : 'text-rose-600'
+                                }`}>
+                                    <p className="font-bold">[{log.time}]</p>
+                                    <p>Homografía {log.homografia}</p>
+                                    <p>Piezas reconocidas ({log.piezas})</p>
+                                    <p>Casillas vacías ({log.vacias})</p>
+                                    {log.msg && (
+                                        <p className="text-[10px] mt-1 font-semibold flex items-center gap-1">
+                                            <ChevronRight size={10} />
+                                            {log.msg}
+                                        </p>
+                                    )}
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             </div>
+        )
+    }
 
-            {/* Modal de Compartir */}
+    return (
+        <div className="min-h-screen flex flex-col bg-white overflow-x-hidden">
+            <Header />
+            <div className="hidden md:grid grid-cols-3 gap-12 px-8 md:px-12 lg:px-16 pb-12 mt-8 flex-1">
+                <div className="flex flex-col gap-6 border-r border-cr-border/40 pr-10">
+                    <h2 className="font-display text-xl font-black text-cr-text tracking-tight">
+                        Configuración
+                    </h2>
+                    {renderConfigForm()}
+                </div>
+                <div className="flex flex-col gap-6 border-r border-cr-border/40 pr-10">
+                    <h2 className="font-display text-xl font-black text-cr-text tracking-tight">
+                        Visión IA
+                    </h2>
+                    {renderVisionArea()}
+                </div>
+                <div className="flex flex-col gap-6">
+                    <h2 className="font-display text-xl font-black text-cr-text tracking-tight">
+                        Consola
+                    </h2>
+                    {renderConsoleArea()}
+                </div>
+            </div>
+            <div className="flex-1 md:hidden flex flex-col p-6 pb-24 mt-4">
+                {activeTab === 'config' && (
+                    <div className="flex flex-col gap-5 animate-in fade-in duration-300">
+                        <h2 className="font-display text-lg font-black text-cr-text tracking-tight">Configuración</h2>
+                        {renderConfigForm()}
+                    </div>
+                )}
+                {activeTab === 'vision' && (
+                    <div className="flex flex-col gap-5 animate-in fade-in duration-300">
+                        <h2 className="font-display text-lg font-black text-cr-text tracking-tight">Visión IA</h2>
+                        {renderVisionArea()}
+                    </div>
+                )}
+                {activeTab === 'consola' && (
+                    <div className="flex flex-col gap-5 animate-in fade-in duration-300">
+                        <h2 className="font-display text-lg font-black text-cr-text tracking-tight">Consola</h2>
+                        {renderConsoleArea()}
+                    </div>
+                )}
+            </div>
+            <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-cr-border flex items-stretch z-50">
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('config')}
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${activeTab === 'config' ? 'text-cr-primary' : 'text-cr-muted'}`}
+                >
+                    <div className={`w-8 h-1 rounded-full mb-1 transition-all ${activeTab === 'config' ? 'bg-cr-primary' : 'bg-transparent'}`} />
+                    <span className="text-[10px] uppercase font-black tracking-widest">Configuración</span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('vision')}
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${activeTab === 'vision' ? 'text-cr-primary' : 'text-cr-muted'}`}
+                >
+                    <div className={`w-8 h-1 rounded-full mb-1 transition-all ${activeTab === 'vision' ? 'bg-cr-primary' : 'bg-transparent'}`} />
+                    <span className="text-[10px] uppercase font-black tracking-widest">Visión IA</span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('consola')}
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${activeTab === 'consola' ? 'text-cr-primary' : 'text-cr-muted'}`}
+                >
+                    <div className={`w-8 h-1 rounded-full mb-1 transition-all ${activeTab === 'consola' ? 'bg-cr-primary' : 'bg-transparent'}`} />
+                    <span className="text-[10px] uppercase font-black tracking-widest">Consola</span>
+                </button>
+            </div>
+
             <Modal isOpen={showShareModal} onClose={() => setShowShareModal(false)} title="Compartir Retransmisión">
                 <div className="p-6">
                     <p className="text-cr-muted text-sm mb-4">Envía este enlace a los espectadores para que sigan la partida en vivo:</p>
@@ -499,10 +804,10 @@ export default function RetransmisionPage() {
                         <input 
                             type="text" 
                             readOnly 
-                            value={`${window.location.origin}/retransmision/${token}`}
+                            value={token ? `${window.location.origin}/retransmision/${token}` : ''}
                             className="bg-transparent flex-1 outline-none text-xs text-cr-text font-mono"
                         />
-                        <button onClick={copyUrl} className="text-cr-primary hover:text-cr-primary-hover">
+                        <button type="button" onClick={copyUrl} className="text-cr-primary hover:text-cr-primary-hover">
                             {copied ? <Check size={18} /> : <Copy size={18} />}
                         </button>
                     </div>

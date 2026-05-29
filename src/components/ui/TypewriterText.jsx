@@ -65,6 +65,7 @@ export default function TypewriterText({
         }
     }, [displayed, isDeleting, isPaused, phraseIdx, phrases, typingSpeed, deletingSpeed, pauseAfter])
 
+    // Renderizamos el texto con un cursor parpadeante al final. El texto se actualiza según el estado de escritura/borrado.
     return (
         <span className={className}>
             {displayed}

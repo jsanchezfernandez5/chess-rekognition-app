@@ -129,9 +129,9 @@ export default function ChessBoard({
         }
     }, [actionRef, notifyChange])
 
-    return (
-        // Tablero de ajedrez.
+    return (        
         <div className="w-full flex justify-center items-center">
+            {/* Tablero de ajedrez. */}
             <div className="w-full aspect-square max-w-125 shadow-2xl rounded-2xl bg-white p-4">
                 <Chessboard
                     options={{
@@ -144,7 +144,7 @@ export default function ChessBoard({
                 />
             </div>
 
-            // Modal para la promoción de peones, se muestra cuando un peón llega a la última fila y el usuario debe elegir a qué pieza promoverlo.
+            {/* Modal para la promoción de peones */}
             <Modal
                 isOpen={showPromotionModal}
                 onClose={() => { setShowPromotionModal(false); setMovePendingPromotion(null) }}
