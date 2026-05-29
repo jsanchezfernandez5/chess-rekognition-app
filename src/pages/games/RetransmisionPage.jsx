@@ -14,7 +14,7 @@ import Header from '@/components/layout/Header'
 export default function RetransmisionPage() {
     const { authFetch } = useAuth()
     const navigate = useNavigate()
-    
+
     const game = useRef(new Chess())
     const wsRef = useRef(null)
     const intervalRef = useRef(null)
@@ -42,6 +42,7 @@ export default function RetransmisionPage() {
 
     const [isVisionActive, setIsVisionActive] = useState(false)
     const [activeTab, setActiveTab] = useState('config')
+    const [manualPoints, setManualPoints] = useState([])
     const [resultado, setResultado] = useState('*')
     const [formData, setFormData] = useState({
         evento: '',
@@ -65,7 +66,7 @@ export default function RetransmisionPage() {
             authFetch(`/retransmision/${retransmisionIdRef.current}`, {
                 method: 'PATCH',
                 body: JSON.stringify({ is_activa: false })
-            }).catch(() => {})
+            }).catch(() => { })
         }
     }, [authFetch])
 
@@ -92,11 +93,11 @@ export default function RetransmisionPage() {
         const month = String(now.getMonth() + 1).padStart(2, '0')
         const year = now.getFullYear()
         const timeStr = `${day}/${month}/${year} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
-        
+
         let homografia = "correcta (64/64 casillas)"
         let piezas = "32/32 piezas"
         let vacias = "32/32 casillas"
-        
+
         if (data) {
             let boardState = data.board_state
             if (data.squares) {
@@ -128,7 +129,7 @@ export default function RetransmisionPage() {
         const host = apiUrl.replace(/^https?:\/\//, '')
         const wsUrl = `${protocol}//${host}/retransmision/ws/host/${token}`
         const ws = new WebSocket(wsUrl)
-        
+
         ws.onopen = () => {
             addLog("Canal de retransmisión abierto", "info")
             ws.send(JSON.stringify({
@@ -245,6 +246,10 @@ export default function RetransmisionPage() {
         const blob = await new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.85))
         const fd = new FormData()
         fd.append('file', blob)
+        if (manualPoints.length === 4) {
+            const coordsStr = manualPoints.map(p => `${p.x},${p.y}`).join(",")
+            fd.append('coords', coordsStr)
+        }
         try {
             const res = await authFetch('/vision/recognize-board', {
                 method: 'POST',
@@ -264,7 +269,7 @@ export default function RetransmisionPage() {
         } catch (err) {
             addLog("Error de red en calibración: " + err.message, "error")
         }
-    }, [authFetch, addLog])
+    }, [authFetch, addLog, manualPoints])
 
     const captureFrame = useCallback(() => {
         return new Promise(resolve => {
@@ -318,6 +323,10 @@ export default function RetransmisionPage() {
             const fd = new FormData()
             fd.append('file', blob)
             fd.append('prev_fen', game.current.fen())
+            if (manualPoints.length === 4) {
+                const coordsStr = manualPoints.map(p => `${p.x},${p.y}`).join(",")
+                fd.append('coords', coordsStr)
+            }
             const res = await authFetch('/vision/detect-move', {
                 method: 'POST',
                 body: fd,
@@ -338,7 +347,7 @@ export default function RetransmisionPage() {
                 try {
                     game.current.move(move.uci)
                 } catch (e) {
-                    addLog("Movimiento inválido local: " + e.message, "error")
+                    addLog("Movimiento no válido local: " + e.message, "error")
                     return
                 }
                 setCurrentFen(data.new_fen)
@@ -374,7 +383,7 @@ export default function RetransmisionPage() {
         } finally {
             detectingRef.current = false
         }
-    }, [authFetch, captureFrame, drawOverlay, addLog, formData.evento, formData.blancas, formData.negras, resultado])
+    }, [authFetch, captureFrame, drawOverlay, addLog, formData.evento, formData.blancas, formData.negras, resultado, manualPoints])
 
     useEffect(() => {
         if (isAutoMode) {
@@ -531,23 +540,22 @@ export default function RetransmisionPage() {
         return (
             <div className="flex flex-col gap-6 flex-1">
                 <div className="relative rounded-2xl overflow-hidden bg-black aspect-video shadow-md border border-cr-border">
-                    <video 
+                    <video
                         ref={videoRef}
-                        autoPlay 
-                        playsInline 
+                        autoPlay
+                        playsInline
                         muted
                         className="w-full h-full object-cover"
                     />
-                    <canvas 
+                    <canvas
                         ref={canvasRef}
                         width={1280}
                         height={720}
                         className="absolute top-0 left-0 w-full h-full pointer-events-none"
                     />
                     <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md flex items-center gap-1.5 ${
-                            isCalibrated ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
-                        }`}>
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md flex items-center gap-1.5 ${isCalibrated ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                            }`}>
                             <div className={`w-1.5 h-1.5 rounded-full ${isCalibrated ? 'bg-green-400' : 'bg-red-400'}`} />
                             ESTADO
                         </span>
@@ -560,7 +568,7 @@ export default function RetransmisionPage() {
                     </div>
                     <AnimatePresence>
                         {specialMove && (
-                            <motion.div 
+                            <motion.div
                                 initial={{ scale: 0.8, opacity: 0, y: 20 }}
                                 animate={{ scale: 1, opacity: 1, y: 0 }}
                                 exit={{ scale: 0.8, opacity: 0 }}
@@ -579,18 +587,18 @@ export default function RetransmisionPage() {
                     </div>
                 )}
                 <div className="flex gap-4">
-                    <Button 
-                        onClick={cambiarCamara} 
-                        disabled={!isVisionActive} 
-                        variant="secondary" 
+                    <Button
+                        onClick={cambiarCamara}
+                        disabled={!isVisionActive}
+                        variant="secondary"
                         className="flex-1 text-xs py-3 font-bold"
                     >
                         Cambiar cámara
                     </Button>
-                    <Button 
-                        onClick={isCamActive ? stopCamera : () => startCamera()} 
-                        disabled={!isVisionActive} 
-                        variant="secondary" 
+                    <Button
+                        onClick={isCamActive ? stopCamera : () => startCamera()}
+                        disabled={!isVisionActive}
+                        variant="secondary"
                         className="flex-1 text-xs py-3 font-bold"
                     >
                         {isCamActive ? "Parar Cámara" : "Iniciar Cámara"}
@@ -610,13 +618,12 @@ export default function RetransmisionPage() {
                         <span className="text-xs font-bold text-cr-text">Detección Automática</span>
                         <span className="text-[10px] text-cr-muted">Buscar movimientos cada 500ms</span>
                     </div>
-                    <button 
+                    <button
                         type="button"
                         onClick={() => isCalibrated && setIsAutoMode(!isAutoMode)}
                         disabled={!isCalibrated}
-                        className={`w-10 h-5 rounded-full transition-colors relative outline-none ${
-                            !isCalibrated ? 'bg-gray-200 cursor-not-allowed' : (isAutoMode ? 'bg-cr-primary' : 'bg-gray-300')
-                        }`}
+                        className={`w-10 h-5 rounded-full transition-colors relative outline-none ${!isCalibrated ? 'bg-gray-200 cursor-not-allowed' : (isAutoMode ? 'bg-cr-primary' : 'bg-gray-300')
+                            }`}
                     >
                         <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${isAutoMode ? 'translate-x-5' : ''}`} />
                     </button>
@@ -658,19 +665,19 @@ export default function RetransmisionPage() {
                     </div>
                 </div>
                 <div className="flex flex-col gap-3 pt-2 mt-auto">
-                    <Button 
-                        onClick={() => setShowShareModal(true)} 
-                        disabled={!token} 
-                        variant="primary" 
+                    <Button
+                        onClick={() => setShowShareModal(true)}
+                        disabled={!token}
+                        variant="primary"
                         className="w-full h-12 text-xs font-black uppercase tracking-widest shadow-md flex items-center justify-center gap-2"
                     >
                         <Share2 size={16} />
                         Compartir Retransmisión
                     </Button>
-                    <Button 
-                        onClick={finalizeGame} 
-                        disabled={!isVisionActive} 
-                        variant="primary" 
+                    <Button
+                        onClick={finalizeGame}
+                        disabled={!isVisionActive}
+                        variant="primary"
                         className="w-full h-12 text-xs font-black uppercase tracking-widest shadow-md bg-rose-600 hover:bg-rose-700 shadow-rose-600/10 hover:shadow-rose-700/20"
                     >
                         Finalizar Retransmisión
@@ -686,8 +693,8 @@ export default function RetransmisionPage() {
                 <div className="flex flex-col gap-2">
                     <span className="text-[11px] font-semibold uppercase tracking-widest text-cr-muted">Tablero rectificado (vista cenital)</span>
                     <div className="bg-cr-surface p-4 rounded-2xl border border-cr-border shadow-sm aspect-square w-full max-w-[280px] mx-auto overflow-hidden">
-                        <Chessboard 
-                            position={currentFen} 
+                        <Chessboard
+                            position={currentFen}
                             arePiecesDraggable={false}
                             customSquareStyles={{
                                 ...(lastMove && {
@@ -705,9 +712,8 @@ export default function RetransmisionPage() {
                             <span className="text-cr-muted italic">Esperando actividad...</span>
                         ) : (
                             logs.map((log, i) => (
-                                <div key={i} className={`leading-relaxed border-b border-cr-border/40 pb-3 last:border-0 ${
-                                    log.status === 'success' ? 'text-green-600' : 'text-rose-600'
-                                }`}>
+                                <div key={i} className={`leading-relaxed border-b border-cr-border/40 pb-3 last:border-0 ${log.status === 'success' ? 'text-green-600' : 'text-rose-600'
+                                    }`}>
                                     <p className="font-bold">[{log.time}]</p>
                                     <p>Homografía {log.homografia}</p>
                                     <p>Piezas reconocidas ({log.piezas})</p>
@@ -801,9 +807,9 @@ export default function RetransmisionPage() {
                 <div className="p-6">
                     <p className="text-cr-muted text-sm mb-4">Envía este enlace a los espectadores para que sigan la partida en vivo:</p>
                     <div className="flex gap-2 p-3 bg-cr-surface2 rounded-lg border border-cr-border">
-                        <input 
-                            type="text" 
-                            readOnly 
+                        <input
+                            type="text"
+                            readOnly
                             value={token ? `${window.location.origin}/retransmision/${token}` : ''}
                             className="bg-transparent flex-1 outline-none text-xs text-cr-text font-mono"
                         />
