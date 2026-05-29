@@ -722,10 +722,10 @@ export default function RetransmisionPage() {
                             disabled={!isVisionActive}
                             className="w-full h-12 appearance-none bg-cr-surface2 border border-cr-primary/15 focus:border-cr-primary rounded-xl px-4 text-sm font-bold text-cr-text transition-all outline-hidden cursor-pointer animate-none"
                         >
-                            <option value={0}>De frente - Blancas pegado a la cámara (Debajo 0º)</option>
-                            <option value={90}>Lateral Blancas a la derecha (90º)</option>
-                            <option value={270}>Lateral Blancas a la izquierda (270º)</option>
-                            <option value={180}>De frente - Blancas alejada de la cámara (180º)</option>
+                            <option value={0}>Blancas debajo (0º)</option>
+                            <option value={90}>Blancas a la derecha (90º)</option>
+                            <option value={270}>Blancas a la izquierda (270º)</option>
+                            <option value={180}>Blancas arriba (180º)</option>
                         </select>
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-cr-muted pointer-events-none group-hover:text-cr-primary transition-colors">
                             ▼
