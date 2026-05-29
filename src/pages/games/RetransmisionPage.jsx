@@ -43,6 +43,9 @@ export default function RetransmisionPage() {
     const [isVisionActive, setIsVisionActive] = useState(false)
     const [activeTab, setActiveTab] = useState('config')
     const [manualPoints, setManualPoints] = useState([])
+    const [lastBoardState, setLastBoardState] = useState(null)
+    const [rotation, setRotation] = useState(0)
+    const [aspectRatio, setAspectRatio] = useState('16/9')
     const [resultado, setResultado] = useState('*')
     const [formData, setFormData] = useState({
         evento: '',
@@ -246,6 +249,7 @@ export default function RetransmisionPage() {
         const blob = await new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.85))
         const fd = new FormData()
         fd.append('file', blob)
+        fd.append('rotation', rotation)
         if (manualPoints.length === 4) {
             const coordsStr = manualPoints.map(p => `${p.x},${p.y}`).join(",")
             fd.append('coords', coordsStr)
@@ -269,7 +273,7 @@ export default function RetransmisionPage() {
         } catch (err) {
             addLog("Error de red en calibración: " + err.message, "error")
         }
-    }, [authFetch, addLog, manualPoints])
+    }, [authFetch, addLog, manualPoints, rotation])
 
     const captureFrame = useCallback(() => {
         return new Promise(resolve => {
@@ -281,24 +285,40 @@ export default function RetransmisionPage() {
         })
     }, [])
 
-    const drawOverlay = useCallback((boardState) => {
+    const handleCanvasClick = (e) => {
+        if (!canvasRef.current) return
+        const rect = canvasRef.current.getBoundingClientRect()
+        const x = (e.clientX - rect.left) / rect.width
+        const y = (e.clientY - rect.top) / rect.height
+
+        setManualPoints(prev => {
+            if (prev.length >= 4) {
+                return []
+            } else {
+                return [...prev, { x, y }]
+            }
+        })
+    }
+
+    const drawOverlay = useCallback(() => {
         const ctx = canvasRef.current?.getContext('2d')
         if (!ctx || !videoRef.current) return
         const w = canvasRef.current.width
         const h = canvasRef.current.height
         ctx.clearRect(0, 0, w, h)
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"
-        ctx.lineWidth = 1
-        const size = Math.min(w, h) * 0.8
-        const x0 = (w - size) / 2
-        const y0 = (h - size) / 2
-        const cell = size / 8
-        for (let i = 0; i <= 8; i++) {
-            ctx.beginPath(); ctx.moveTo(x0 + i * cell, y0); ctx.lineTo(x0 + i * cell, y0 + size); ctx.stroke()
-            ctx.beginPath(); ctx.moveTo(x0, y0 + i * cell); ctx.lineTo(x0 + size, y0 + i * cell); ctx.stroke()
-        }
-        if (boardState) {
-            Object.entries(boardState).forEach(([sq, val]) => {
+        
+        if (lastBoardState) {
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"
+            ctx.lineWidth = 1
+            const size = Math.min(w, h) * 0.8
+            const x0 = (w - size) / 2
+            const y0 = (h - size) / 2
+            const cell = size / 8
+            for (let i = 0; i <= 8; i++) {
+                ctx.beginPath(); ctx.moveTo(x0 + i * cell, y0); ctx.lineTo(x0 + i * cell, y0 + size); ctx.stroke()
+                ctx.beginPath(); ctx.moveTo(x0, y0 + i * cell); ctx.lineTo(x0 + size, y0 + i * cell); ctx.stroke()
+            }
+            Object.entries(lastBoardState).forEach(([sq, val]) => {
                 if (val.label !== 'empty') {
                     const col = sq.charCodeAt(0) - 97
                     const row = 8 - parseInt(sq[1])
@@ -313,7 +333,35 @@ export default function RetransmisionPage() {
                 }
             })
         }
-    }, [])
+
+        if (manualPoints.length > 0) {
+            ctx.lineWidth = 2
+            ctx.strokeStyle = "#10b981"
+            ctx.fillStyle = "#ef4444"
+
+            ctx.beginPath()
+            ctx.moveTo(manualPoints[0].x * w, manualPoints[0].y * h)
+            for (let i = 1; i < manualPoints.length; i++) {
+                ctx.lineTo(manualPoints[i].x * w, manualPoints[i].y * h)
+            }
+            if (manualPoints.length === 4) {
+                ctx.closePath()
+            }
+            ctx.stroke()
+
+            manualPoints.forEach((pt, index) => {
+                const px = pt.x * w
+                const py = pt.y * h
+                ctx.beginPath()
+                ctx.arc(px, py, 6, 0, 2 * Math.PI)
+                ctx.fill()
+                ctx.fillStyle = "#ffffff"
+                ctx.font = "10px sans-serif"
+                ctx.textAlign = "center"
+                ctx.fillText(String(index + 1), px, py + 3)
+            })
+        }
+    }, [lastBoardState, manualPoints])
 
     const detectMove = useCallback(async () => {
         if (detectingRef.current) return
@@ -323,6 +371,7 @@ export default function RetransmisionPage() {
             const fd = new FormData()
             fd.append('file', blob)
             fd.append('prev_fen', game.current.fen())
+            fd.append('rotation', rotation)
             if (manualPoints.length === 4) {
                 const coordsStr = manualPoints.map(p => `${p.x},${p.y}`).join(",")
                 fd.append('coords', coordsStr)
@@ -340,7 +389,7 @@ export default function RetransmisionPage() {
                 }
                 return
             }
-            drawOverlay(data.board_state)
+            setLastBoardState(data.board_state)
             if (data.found) {
                 missCountRef.current = 0
                 const move = data.move
@@ -383,7 +432,7 @@ export default function RetransmisionPage() {
         } finally {
             detectingRef.current = false
         }
-    }, [authFetch, captureFrame, drawOverlay, addLog, formData.evento, formData.blancas, formData.negras, resultado, manualPoints])
+    }, [authFetch, captureFrame, addLog, formData.evento, formData.blancas, formData.negras, resultado, manualPoints, rotation])
 
     useEffect(() => {
         if (isAutoMode) {
@@ -409,6 +458,42 @@ export default function RetransmisionPage() {
             }))
         }
     }, [resultado, formData.evento, formData.blancas, formData.negras, lastMove])
+
+    // Ajustar el tamaño del canvas y relación de aspecto al cargar metadatos del vídeo
+    useEffect(() => {
+        const videoEl = videoRef.current
+        if (!videoEl) return
+
+        const handleLoadedMetadata = () => {
+            const width = videoEl.videoWidth
+            const height = videoEl.videoHeight
+            if (width && height) {
+                setAspectRatio(`${width} / ${height}`)
+                if (canvasRef.current) {
+                    canvasRef.current.width = width
+                    canvasRef.current.height = height
+                }
+                drawOverlay()
+            }
+        }
+
+        videoEl.addEventListener('loadedmetadata', handleLoadedMetadata)
+        videoEl.addEventListener('play', handleLoadedMetadata)
+        
+        if (videoEl.videoWidth) {
+            handleLoadedMetadata()
+        }
+
+        return () => {
+            videoEl.removeEventListener('loadedmetadata', handleLoadedMetadata)
+            videoEl.removeEventListener('play', handleLoadedMetadata)
+        }
+    }, [isCamActive, drawOverlay])
+
+    // Redibujar el overlay cuando cambien los puntos manuales o el estado del tablero
+    useEffect(() => {
+        drawOverlay()
+    }, [manualPoints, lastBoardState, drawOverlay])
 
     const finalizeGame = useCallback(async () => {
         if (!confirm("¿Deseas finalizar la retransmisión y guardar la partida?")) return
@@ -539,7 +624,10 @@ export default function RetransmisionPage() {
     const renderVisionArea = () => {
         return (
             <div className="flex flex-col gap-6 flex-1">
-                <div className="relative rounded-2xl overflow-hidden bg-black aspect-video shadow-md border border-cr-border">
+                <div 
+                    className="relative rounded-2xl overflow-hidden bg-black shadow-md border border-cr-border"
+                    style={{ aspectRatio }}
+                >
                     <video
                         ref={videoRef}
                         autoPlay
@@ -549,11 +637,12 @@ export default function RetransmisionPage() {
                     />
                     <canvas
                         ref={canvasRef}
+                        onClick={handleCanvasClick}
                         width={1280}
                         height={720}
-                        className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                        className="absolute top-0 left-0 w-full h-full cursor-crosshair z-10"
                     />
-                    <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
+                    <div className="absolute top-4 right-4 flex flex-col gap-2 items-end z-20">
                         <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md flex items-center gap-1.5 ${isCalibrated ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
                             }`}>
                             <div className={`w-1.5 h-1.5 rounded-full ${isCalibrated ? 'bg-green-400' : 'bg-red-400'}`} />
@@ -572,7 +661,7 @@ export default function RetransmisionPage() {
                                 initial={{ scale: 0.8, opacity: 0, y: 20 }}
                                 animate={{ scale: 1, opacity: 1, y: 0 }}
                                 exit={{ scale: 0.8, opacity: 0 }}
-                                className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-cr-primary text-white px-4 py-2 rounded-xl shadow-lg font-bold text-xs flex items-center gap-2 border border-white/15"
+                                className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-cr-primary text-white px-4 py-2 rounded-xl shadow-lg font-bold text-xs flex items-center gap-2 border border-white/15 z-20"
                             >
                                 <span>♟</span>
                                 {specialMove.replace('_', ' ').toUpperCase()}
@@ -605,14 +694,44 @@ export default function RetransmisionPage() {
                     </Button>
                 </div>
                 {isCamActive && (
-                    <Button
-                        onClick={calibrar}
-                        variant="primary"
-                        className="w-full text-xs font-bold py-3"
-                    >
-                        Calibrar tablero
-                    </Button>
+                    <div className="flex gap-4">
+                        <Button
+                            onClick={calibrar}
+                            variant="primary"
+                            className="flex-1 text-xs font-bold py-3"
+                        >
+                            Calibrar tablero
+                        </Button>
+                        {manualPoints.length > 0 && (
+                            <Button
+                                onClick={() => setManualPoints([])}
+                                variant="secondary"
+                                className="flex-1 text-xs font-bold py-3 border-rose-500/30 text-rose-600 hover:bg-rose-50/50"
+                            >
+                                Limpiar Esquinas
+                            </Button>
+                        )}
+                    </div>
                 )}
+                <div className="flex flex-col gap-2">
+                    <label className="text-[11px] font-semibold uppercase tracking-widest text-cr-muted">Orientación de la cámara</label>
+                    <div className="relative group">
+                        <select
+                            value={rotation}
+                            onChange={(e) => setRotation(parseInt(e.target.value))}
+                            disabled={!isVisionActive}
+                            className="w-full h-12 appearance-none bg-cr-surface2 border border-cr-primary/15 focus:border-cr-primary rounded-xl px-4 text-sm font-bold text-cr-text transition-all outline-hidden cursor-pointer animate-none"
+                        >
+                            <option value={0}>Normal (0°)</option>
+                            <option value={90}>Lateral Derecha (90° Horario)</option>
+                            <option value={270}>Lateral Izquierda (90° Antihorario)</option>
+                            <option value={180}>Invertido (180°)</option>
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-cr-muted pointer-events-none group-hover:text-cr-primary transition-colors">
+                            ▼
+                        </div>
+                    </div>
+                </div>
                 <div className="flex items-center justify-between p-3 bg-cr-surface2 rounded-xl border border-cr-border">
                     <div className="flex flex-col">
                         <span className="text-xs font-bold text-cr-text">Detección Automática</span>
