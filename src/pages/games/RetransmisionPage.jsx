@@ -23,6 +23,9 @@ export default function RetransmisionPage() {
     const retransmisionIdRef = useRef(null)
     const videoRef = useRef(null)
     const canvasRef = useRef(null)
+    const pingIntervalRef = useRef(null)
+    const reconnectTimeoutRef = useRef(null)
+    const isExplicitlyClosedRef = useRef(false)
 
     const MISS_THRESHOLD = 3
 
@@ -60,7 +63,10 @@ export default function RetransmisionPage() {
     const [deviceIndex, setDeviceIndex] = useState(0)
 
     const cleanup = useCallback(async () => {
+        isExplicitlyClosedRef.current = true
         clearInterval(intervalRef.current)
+        if (pingIntervalRef.current) clearInterval(pingIntervalRef.current)
+        if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
         if (wsRef.current) wsRef.current.close()
         if (videoRef.current?.srcObject) {
             videoRef.current.srcObject.getTracks().forEach(t => t.stop())
@@ -126,12 +132,20 @@ export default function RetransmisionPage() {
         setLogs(prev => [{ time: timeStr, status, msg, homografia, piezas, vacias }, ...prev].slice(0, 5))
     }, [])
 
-    const initWebSocket = useCallback((token) => {
+    const initWebSocket = useCallback((tokenVal) => {
+        if (wsRef.current) {
+            wsRef.current.close()
+        }
+
+        if (pingIntervalRef.current) clearInterval(pingIntervalRef.current)
+        if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
+
         const apiUrl = import.meta.env.VITE_API_URL || 'https://chess-rekognition-api-production.up.railway.app'
         const protocol = apiUrl.startsWith('https') ? 'wss:' : 'ws:'
         const host = apiUrl.replace(/^https?:\/\//, '')
-        const wsUrl = `${protocol}//${host}/retransmision/ws/host/${token}`
+        const wsUrl = `${protocol}//${host}/retransmision/ws/host/${tokenVal}`
         const ws = new WebSocket(wsUrl)
+        wsRef.current = ws
 
         ws.onopen = () => {
             addLog("Canal de retransmisión abierto", "info")
@@ -144,9 +158,38 @@ export default function RetransmisionPage() {
                 pgn: game.current.pgn(),
                 last_move: lastMove
             }))
+
+            pingIntervalRef.current = setInterval(() => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send("ping")
+                }
+            }, 30000)
         }
-        ws.onerror = () => addLog("Error en WebSocket", "error")
-        wsRef.current = ws
+
+        ws.onmessage = (event) => {
+            if (event.data === "pong") return
+        }
+
+        ws.onclose = (event) => {
+            if (pingIntervalRef.current) {
+                clearInterval(pingIntervalRef.current)
+                pingIntervalRef.current = null
+            }
+
+            if (isExplicitlyClosedRef.current || event.code === 1000) {
+                addLog("Canal de retransmisión cerrado", "info")
+                return
+            }
+
+            addLog("Desconexión de red. Intentando reconectar...", "error")
+            reconnectTimeoutRef.current = setTimeout(() => {
+                initWebSocket(tokenVal)
+            }, 3000)
+        }
+
+        ws.onerror = () => {
+            ws.close()
+        }
     }, [addLog, formData.evento, formData.blancas, formData.negras, resultado, lastMove])
 
     const startCamera = useCallback(async (deviceIdx = deviceIndex) => {
@@ -497,6 +540,7 @@ export default function RetransmisionPage() {
 
     const finalizeGame = useCallback(async () => {
         if (!confirm("¿Deseas finalizar la retransmisión y guardar la partida?")) return
+        isExplicitlyClosedRef.current = true
         try {
             await authFetch(`/retransmision/${retransmisionId}`, {
                 method: 'PATCH',

@@ -41,38 +41,86 @@ export default function RetransmisionPublicaPage() {
     const wsRef = useRef(null)
 
     useEffect(() => {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-        const wsUrl = `${protocol}//${window.location.host}/retransmision/ws/viewer/${token}`
-        const ws = new WebSocket(wsUrl)
+        let active = true
+        let socket = null
+        let reconnectTimeout = null
+        let pingInterval = null
 
-        ws.onopen = () => {
-            setIsConnected(true)
-        }
+        const connect = () => {
+            if (!active) return
 
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data)
+            const apiUrl = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.host}`
+            const protocol = apiUrl.startsWith('https') ? 'wss:' : 'ws:'
+            const host = apiUrl.replace(/^https?:\/\//, '')
+            const wsUrl = `${protocol}//${host}/retransmision/ws/viewer/${token}`
             
-            if (data.fen) setLiveFen(data.fen)
-            if (data.pgn) setLivePgn(data.pgn)
-            if (data.last_move) setLiveLastMove(data.last_move)
-            if (data.evento !== undefined) setEvento(data.evento || '')
-            if (data.blancas !== undefined) setBlancas(data.blancas || '')
-            if (data.negras !== undefined) setNegras(data.negras || '')
-            if (data.resultado !== undefined) setResultado(data.resultado || '*')
-            
-            if (data.move_type && !['normal', 'capture'].includes(data.move_type)) {
-                setMoveType(data.move_type)
-                setTimeout(() => setMoveType(null), 3000)
+            socket = new WebSocket(wsUrl)
+            wsRef.current = socket
+
+            socket.onopen = () => {
+                if (!active) return
+                setIsConnected(true)
+                pingInterval = setInterval(() => {
+                    if (socket && socket.readyState === WebSocket.OPEN) {
+                        socket.send("ping")
+                    }
+                }, 30000)
+            }
+
+            socket.onmessage = (event) => {
+                if (!active) return
+                if (event.data === "pong" || event.data === "ping") return
+                
+                try {
+                    const data = JSON.parse(event.data)
+                    
+                    if (data.fen) setLiveFen(data.fen)
+                    if (data.pgn) setLivePgn(data.pgn)
+                    if (data.last_move) setLiveLastMove(data.last_move)
+                    if (data.evento !== undefined) setEvento(data.evento || '')
+                    if (data.blancas !== undefined) setBlancas(data.blancas || '')
+                    if (data.negras !== undefined) setNegras(data.negras || '')
+                    if (data.resultado !== undefined) setResultado(data.resultado || '*')
+                    
+                    if (data.move_type && !['normal', 'capture'].includes(data.move_type)) {
+                        setMoveType(data.move_type)
+                        setTimeout(() => {
+                            if (active) setMoveType(null)
+                        }, 3000)
+                    }
+                } catch (e) {
+                    console.error("Error parseando mensaje WebSocket:", e)
+                }
+            }
+
+            socket.onclose = (event) => {
+                if (pingInterval) {
+                    clearInterval(pingInterval)
+                    pingInterval = null
+                }
+                if (!active) return
+                setIsConnected(false)
+                
+                if (event.code === 1000) {
+                    setIsFinished(true)
+                } else {
+                    reconnectTimeout = setTimeout(connect, 3000)
+                }
+            }
+
+            socket.onerror = () => {
+                if (socket) socket.close()
             }
         }
 
-        ws.onclose = () => {
-            setIsConnected(false)
-            setIsFinished(true)
-        }
+        connect()
 
-        wsRef.current = ws
-        return () => ws.close()
+        return () => {
+            active = false
+            if (socket) socket.close()
+            if (reconnectTimeout) clearTimeout(reconnectTimeout)
+            if (pingInterval) clearInterval(pingInterval)
+        }
     }, [token])
 
     const history = useMemo(() => {
