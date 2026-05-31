@@ -93,6 +93,8 @@ export default function RetransmisionPage() {
         }
     }, [])
 
+    const pgnMoves = parsePgn(pgn)
+
     useEffect(() => {
         getDevices()
         return () => {
@@ -869,8 +871,8 @@ export default function RetransmisionPage() {
                     <div className="w-full h-32 p-4 bg-cr-surface2 border border-cr-border rounded-2xl overflow-y-auto">
                         {pgn ? (
                             <div className="flex flex-wrap gap-x-4 gap-y-1.5 font-figurine text-lg leading-relaxed text-cr-text">
-                                {parsePgn(pgn).map((move, i) => (
-                                    <div key={i} className={`px-1.5 py-0.5 rounded ${i === parsePgn(pgn).length - 1 ? 'bg-cr-primary-light text-cr-primary' : ''}`}>
+                                {pgnMoves.map((move, i) => (
+                                    <div key={i} className={`px-1.5 py-0.5 rounded ${i === pgnMoves.length - 1 ? 'bg-cr-primary-light text-cr-primary' : ''}`}>
                                         <span className="text-cr-muted mr-1.5 text-xs font-sans italic">{i + 1}.</span>
                                         {move}
                                     </div>

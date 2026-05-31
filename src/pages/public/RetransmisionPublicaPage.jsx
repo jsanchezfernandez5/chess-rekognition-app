@@ -3,15 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Chess } from 'chess.js'
 import { Chessboard } from 'react-chessboard'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-    ArrowLeft, 
-    ArrowRight, 
-    Play, 
-    Download, 
-    Share2, 
-    Copy, 
-    Check, 
-    LayoutGrid, 
+import {
+    ArrowLeft,
+    ArrowRight,
+    Play,
+    Download,
+    Share2,
+    Copy,
+    Check,
+    LayoutGrid,
     VideoOff
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
@@ -22,23 +22,25 @@ import TypewriterText from '@/components/ui/TypewriterText'
 export default function RetransmisionPublicaPage() {
     const { token } = useParams()
     const navigate = useNavigate()
-    
+
     const [liveFen, setLiveFen] = useState('start')
     const [livePgn, setLivePgn] = useState('')
     const [liveLastMove, setLiveLastMove] = useState(null)
     const [moveType, setMoveType] = useState(null)
     const [isConnected, setIsConnected] = useState(false)
     const [isFinished, setIsFinished] = useState(false)
-    
+
     const [evento, setEvento] = useState('')
     const [blancas, setBlancas] = useState('')
     const [negras, setNegras] = useState('')
     const [resultado, setResultado] = useState('*')
-    
+
     const [viewingMoveIndex, setViewingMoveIndex] = useState(-1)
     const [showShareModal, setShowShareModal] = useState(false)
     const [copied, setCopied] = useState(false)
-    
+
+    const [boardKey, setBoardKey] = useState(0)
+
     const wsRef = useRef(null)
 
     useEffect(() => {
@@ -54,7 +56,7 @@ export default function RetransmisionPublicaPage() {
             const protocol = apiUrl.startsWith('https') ? 'wss:' : 'ws:'
             const host = apiUrl.replace(/^https?:\/\//, '')
             const wsUrl = `${protocol}//${host}/retransmision/ws/viewer/${token}`
-            
+
             socket = new WebSocket(wsUrl)
             wsRef.current = socket
 
@@ -71,10 +73,10 @@ export default function RetransmisionPublicaPage() {
             socket.onmessage = (event) => {
                 if (!active) return
                 if (event.data === "pong" || event.data === "ping") return
-                
+
                 try {
                     const data = JSON.parse(event.data)
-                    
+
                     if (data.fen) setLiveFen(data.fen)
                     if (data.pgn) setLivePgn(data.pgn)
                     if (data.last_move) setLiveLastMove(data.last_move)
@@ -82,7 +84,7 @@ export default function RetransmisionPublicaPage() {
                     if (data.blancas !== undefined) setBlancas(data.blancas || '')
                     if (data.negras !== undefined) setNegras(data.negras || '')
                     if (data.resultado !== undefined) setResultado(data.resultado || '*')
-                    
+
                     if (data.move_type && !['normal', 'capture'].includes(data.move_type)) {
                         setMoveType(data.move_type)
                         setTimeout(() => {
@@ -101,7 +103,7 @@ export default function RetransmisionPublicaPage() {
                 }
                 if (!active) return
                 setIsConnected(false)
-                
+
                 if (event.code === 1000) {
                     setIsFinished(true)
                 } else {
@@ -146,12 +148,16 @@ export default function RetransmisionPublicaPage() {
         }
     }, [livePgn])
 
+    useEffect(() => {
+        setBoardKey(k => k + 1)
+    }, [displayFen])
+
     const getMoveLabel = (type) => {
         const labels = {
-            'castling_short': 'O-O · Enroque corto',
-            'castling_long': 'O-O-O · Enroque largo',
-            'en_passant': '⬡ Captura al paso',
-            'promotion': '♛ Coronación'
+            'castling_short': 'O-O | Enroque corto',
+            'castling_long': 'O-O-O | Enroque largo',
+            'en_passant': 'Captura al paso',
+            'promotion': 'Coronación'
         }
         return labels[type] || type
     }
@@ -197,13 +203,15 @@ export default function RetransmisionPublicaPage() {
         setTimeout(() => setCopied(false), 2000)
     }
 
-    const displayFen = viewingMoveIndex === -1 
-        ? liveFen 
+    const displayFen = viewingMoveIndex === -1
+        ? liveFen
         : (history[viewingMoveIndex]?.fen || 'start')
 
-    const displayLastMove = viewingMoveIndex === -1 
-        ? liveLastMove 
+    const displayLastMove = viewingMoveIndex === -1
+        ? liveLastMove
         : (history[viewingMoveIndex]?.lastMove || null)
+
+    const pgnMoves = parsePgn(livePgn)
 
     const renderLeftColumn = () => {
         return (
@@ -227,7 +235,7 @@ export default function RetransmisionPublicaPage() {
                 </div>
 
                 <div className="relative bg-cr-surface p-4 rounded-2xl border border-cr-border shadow-sm aspect-square w-full max-w-[400px] mx-auto overflow-hidden">
-                    <Chessboard 
+                    <Chessboard key={boardKey}
                         options={{
                             position: displayFen,
                             allowDragging: false,
@@ -241,7 +249,7 @@ export default function RetransmisionPublicaPage() {
                     />
                     <AnimatePresence>
                         {moveType && (
-                            <motion.div 
+                            <motion.div
                                 initial={{ scale: 0.8, opacity: 0, y: 20 }}
                                 animate={{ scale: 1, opacity: 1, y: 0 }}
                                 exit={{ scale: 0.8, opacity: 0 }}
@@ -268,11 +276,10 @@ export default function RetransmisionPublicaPage() {
                         <button
                             type="button"
                             onClick={() => setViewingMoveIndex(-1)}
-                            className={`p-2 rounded-lg transition-colors cursor-pointer ${
-                                viewingMoveIndex === -1 
-                                    ? 'text-cr-primary bg-cr-primary-light animate-pulse font-bold' 
+                            className={`p-2 rounded-lg transition-colors cursor-pointer ${viewingMoveIndex === -1
+                                    ? 'text-cr-primary bg-cr-primary-light animate-pulse font-bold'
                                     : 'text-cr-muted hover:text-cr-primary hover:bg-cr-primary-light'
-                            }`}
+                                }`}
                             title="Volver al directo"
                         >
                             <Play size={20} />
@@ -303,9 +310,9 @@ export default function RetransmisionPublicaPage() {
                     <div className="w-full h-32 p-4 bg-cr-surface2 border border-cr-border rounded-2xl overflow-y-auto">
                         {livePgn ? (
                             <div className="flex flex-wrap gap-x-3 gap-y-1">
-                                {parsePgn(livePgn).map((move, i) => {
-                                    const isHighlighted = viewingMoveIndex === -1 
-                                        ? i === parsePgn(livePgn).length - 1 
+                                {pgnMoves.map((move, i) => {
+                                    const isHighlighted = viewingMoveIndex === -1
+                                        ? i === pgnMoves.length - 1
                                         : i === viewingMoveIndex
                                     const moveNumber = Math.floor(i / 2) + 1
                                     const isWhite = i % 2 === 0
@@ -313,9 +320,8 @@ export default function RetransmisionPublicaPage() {
                                         <button
                                             key={i}
                                             onClick={() => setViewingMoveIndex(i)}
-                                            className={`px-1.5 py-0.5 rounded transition-colors text-lg font-figurine cursor-pointer hover:bg-cr-primary-light hover:text-cr-primary ${
-                                                isHighlighted ? 'bg-cr-primary-light text-cr-primary font-bold' : 'text-cr-text'
-                                            }`}
+                                            className={`px-1.5 py-0.5 rounded transition-colors text-lg font-figurine cursor-pointer hover:bg-cr-primary-light hover:text-cr-primary ${isHighlighted ? 'bg-cr-primary-light text-cr-primary font-bold' : 'text-cr-text'
+                                                }`}
                                         >
                                             {isWhite && (
                                                 <span className="text-cr-muted mr-1 text-xs font-sans italic">{moveNumber}.</span>
@@ -335,9 +341,9 @@ export default function RetransmisionPublicaPage() {
                     <div className="flex items-center justify-center p-3 bg-cr-surface2 border border-cr-border rounded-xl text-cr-muted">
                         <LayoutGrid size={20} />
                     </div>
-                    <Button 
-                        onClick={() => setShowShareModal(true)} 
-                        variant="primary" 
+                    <Button
+                        onClick={() => setShowShareModal(true)}
+                        variant="primary"
                         className="flex-1 h-12 text-xs font-black uppercase tracking-widest shadow-md flex items-center justify-center gap-2"
                     >
                         <Share2 size={16} />
@@ -423,9 +429,9 @@ export default function RetransmisionPublicaPage() {
                 <div className="p-6">
                     <p className="text-cr-muted text-sm mb-4">Envía este enlace a otros espectadores para que sigan la partida en vivo:</p>
                     <div className="flex gap-2 p-3 bg-cr-surface2 rounded-lg border border-cr-border">
-                        <input 
-                            type="text" 
-                            readOnly 
+                        <input
+                            type="text"
+                            readOnly
                             value={window.location.href}
                             className="bg-transparent flex-1 outline-none text-xs text-cr-text font-mono"
                         />
