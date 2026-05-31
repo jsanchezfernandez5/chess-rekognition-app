@@ -80,6 +80,10 @@ export default function RetransmisionPage() {
     }, [authFetch])
 
     const getDevices = useCallback(async () => {
+        if (!navigator.mediaDevices) {
+            console.warn("navigator.mediaDevices no está disponible")
+            return
+        }
         try {
             const devices = await navigator.mediaDevices.enumerateDevices()
             const videoInputs = devices.filter(d => d.kind === 'videoinput')
@@ -196,21 +200,50 @@ export default function RetransmisionPage() {
         if (videoRef.current?.srcObject) {
             videoRef.current.srcObject.getTracks().forEach(t => t.stop())
         }
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            addLog("La API de cámara no está disponible. Asegúrate de usar HTTPS en dispositivos móviles.", "error")
+            setStatus("Error: Se requiere HTTPS")
+            return
+        }
+
         try {
             const constraints = {
-                video: { width: 1280, height: 720 }
+                video: {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
             }
-            if (videoDevices.length > 0 && videoDevices[deviceIdx]) {
+            if (videoDevices.length > 0 && videoDevices[deviceIdx] && videoDevices[deviceIdx].deviceId) {
                 constraints.video.deviceId = { exact: videoDevices[deviceIdx].deviceId }
             } else {
-                constraints.video.facingMode = 'environment'
+                constraints.video.facingMode = { ideal: 'environment' }
             }
-            const stream = await navigator.mediaDevices.getUserMedia(constraints)
+
+            let stream
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(constraints)
+            } catch {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: 'environment' }
+                    }
+                })
+            }
+
             if (videoRef.current) {
                 videoRef.current.srcObject = stream
                 setIsCamActive(true)
                 setStatus("Tablero no calibrado")
                 addLog("Cámara iniciada", "success")
+
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices()
+                    const videoInputs = devices.filter(d => d.kind === 'videoinput')
+                    setVideoDevices(videoInputs)
+                } catch (e) {
+                    console.error(e)
+                }
             }
         } catch (err) {
             addLog("Error de cámara: " + err.message, "error")
@@ -501,6 +534,46 @@ export default function RetransmisionPage() {
             }))
         }
     }, [resultado, formData.evento, formData.blancas, formData.negras, lastMove])
+
+    const onPieceDrop = useCallback((sourceSquare, targetSquare) => {
+        if (!isVisionActive) return false
+
+        try {
+            const move = game.current.move({
+                from: sourceSquare,
+                to: targetSquare,
+                promotion: 'q'
+            })
+
+            if (move) {
+                const newFen = game.current.fen()
+                setCurrentFen(newFen)
+                setPgn(game.current.pgn())
+                const newMove = { from: sourceSquare, to: targetSquare }
+                setLastMove(newMove)
+                setStatus(`Movimiento manual: ${move.san}`)
+                addLog(`Movimiento manual: ${move.san}`, "success")
+
+                if (wsRef.current?.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(JSON.stringify({
+                        fen: newFen,
+                        pgn: game.current.pgn(),
+                        last_move: newMove,
+                        move_type: move.promotion ? 'promotion' : 'normal',
+                        evento: formData.evento,
+                        blancas: formData.blancas,
+                        negras: formData.negras,
+                        resultado: resultado
+                    }))
+                }
+                return true
+            }
+        } catch (error) {
+            console.error(error)
+            return false
+        }
+        return false
+    }, [isVisionActive, formData.evento, formData.blancas, formData.negras, resultado, addLog])
 
     // Ajustar el tamaño del canvas y relación de aspecto al cargar metadatos del vídeo
     useEffect(() => {
@@ -858,7 +931,8 @@ export default function RetransmisionPage() {
                     <div className="bg-cr-surface p-4 rounded-2xl border border-cr-border shadow-sm aspect-square w-full max-w-[280px] mx-auto overflow-hidden">
                         <Chessboard
                             position={currentFen}
-                            arePiecesDraggable={false}
+                            arePiecesDraggable={isVisionActive}
+                            onPieceDrop={onPieceDrop}
                             customSquareStyles={{
                                 ...(lastMove && {
                                     [lastMove.from]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' },

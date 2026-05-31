@@ -17,6 +17,7 @@ import {
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import { parsePgn } from '@/utils/pgnUtils'
+import TypewriterText from '@/components/ui/TypewriterText'
 
 export default function RetransmisionPublicaPage() {
     const { token } = useParams()
@@ -379,26 +380,19 @@ export default function RetransmisionPublicaPage() {
                     {renderLeftColumn()}
                 </div>
 
-                <div className="flex flex-col gap-6">
-                    <h2 className="font-display text-xl font-black text-cr-text tracking-tight">
-                        Cámara de Retransmisión
-                    </h2>
-                    <div className="relative flex-1 aspect-video md:aspect-auto md:h-[400px] bg-cr-surface2 border border-cr-border rounded-2xl overflow-hidden flex flex-col items-center justify-center p-8">
-                        <svg className="absolute inset-0 w-full h-full text-cr-border/40 pointer-events-none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="0" y1="0" x2="100%" y2="100%" stroke="currentColor" strokeWidth="2" />
-                            <line x1="100%" y1="0" x2="0" y2="100%" stroke="currentColor" strokeWidth="2" />
-                        </svg>
-                        
-                        <div className="relative z-10 flex flex-col items-center text-center gap-3">
-                            <div className="p-4 rounded-full bg-white border border-cr-border text-cr-muted shadow-sm">
-                                <VideoOff size={32} />
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-bold text-cr-text">Vídeo Desactivado</h3>
-                                <p className="text-xs text-cr-muted mt-1 max-w-[240px]">
-                                    El anfitrión no está transmitiendo señal de cámara en directo para esta partida.
-                                </p>
-                            </div>
+                <div className="relative flex flex-col justify-center items-center bg-cr-bg overflow-hidden border border-cr-border rounded-2xl p-8 min-h-[400px]">
+                    <img
+                        src="/images/tablero_fondo.jpg"
+                        alt="Chess match"
+                        className="absolute inset-0 object-cover w-full h-full opacity-90 mix-blend-multiply"
+                    />
+
+                    <div className="relative z-10 flex flex-col items-center justify-center text-center px-8">
+                        <h2 className="font-display text-3xl md:text-4xl font-black text-white mb-4 drop-shadow-md">
+                            Chess Rekognition
+                        </h2>
+                        <div className="text-white/90 text-md md:text-lg font-medium tracking-wide drop-shadow text-center min-h-8">
+                            <TypewriterText />
                         </div>
                     </div>
                 </div>
