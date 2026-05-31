@@ -228,13 +228,15 @@ export default function RetransmisionPublicaPage() {
 
                 <div className="relative bg-cr-surface p-4 rounded-2xl border border-cr-border shadow-sm aspect-square w-full max-w-[400px] mx-auto overflow-hidden">
                     <Chessboard 
-                        position={displayFen} 
-                        arePiecesDraggable={false}
-                        customSquareStyles={{
-                            ...(displayLastMove && {
-                                [displayLastMove.from]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' },
-                                [displayLastMove.to]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' }
-                            })
+                        options={{
+                            position: displayFen,
+                            allowDragging: false,
+                            squareStyles: {
+                                ...(displayLastMove && {
+                                    [displayLastMove.from]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' },
+                                    [displayLastMove.to]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' }
+                                })
+                            }
                         }}
                     />
                     <AnimatePresence>
@@ -252,7 +254,7 @@ export default function RetransmisionPublicaPage() {
                     </AnimatePresence>
                 </div>
 
-                <div className="flex items-center justify-between px-2 py-3 bg-cr-surface2 border border-cr-border rounded-xl">
+                <div className="flex items-center justify-center gap-6 px-2 py-3 bg-cr-surface2 border border-cr-border rounded-xl max-w-[400px] mx-auto w-full">
                     <div className="flex items-center gap-4">
                         <button
                             type="button"

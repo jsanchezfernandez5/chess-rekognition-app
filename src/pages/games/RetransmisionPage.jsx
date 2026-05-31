@@ -535,7 +535,7 @@ export default function RetransmisionPage() {
         }
     }, [resultado, formData.evento, formData.blancas, formData.negras, lastMove])
 
-    const onPieceDrop = useCallback((sourceSquare, targetSquare) => {
+    const onPieceDrop = useCallback(({ sourceSquare, targetSquare }) => {
         if (!isVisionActive) return false
 
         try {
@@ -930,14 +930,16 @@ export default function RetransmisionPage() {
                     <span className="text-[11px] font-semibold uppercase tracking-widest text-cr-muted">Tablero rectificado (vista cenital)</span>
                     <div className="bg-cr-surface p-4 rounded-2xl border border-cr-border shadow-sm aspect-square w-full max-w-[280px] mx-auto overflow-hidden">
                         <Chessboard
-                            position={currentFen}
-                            arePiecesDraggable={isVisionActive}
-                            onPieceDrop={onPieceDrop}
-                            customSquareStyles={{
-                                ...(lastMove && {
-                                    [lastMove.from]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' },
-                                    [lastMove.to]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' }
-                                })
+                            options={{
+                                position: currentFen,
+                                onPieceDrop: onPieceDrop,
+                                allowDragging: isVisionActive,
+                                squareStyles: {
+                                    ...(lastMove && {
+                                        [lastMove.from]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' },
+                                        [lastMove.to]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' }
+                                    })
+                                }
                             }}
                         />
                     </div>
