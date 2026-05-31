@@ -51,12 +51,12 @@ export default function RetransmisionPage() {
     const [aspectRatio, setAspectRatio] = useState('16/9')
     const [resultado, setResultado] = useState('*')
     const [formData, setFormData] = useState({
-        evento: '',
-        blancas: '',
-        negras: '',
-        lugar: '',
-        ronda: '',
-        tablero: ''
+        evento: 'Presentación TFG',
+        blancas: 'José Joaquín Sánchez Fernández',
+        negras: 'Bando Negro',
+        lugar: 'Murcia',
+        ronda: '6',
+        tablero: '1'
     })
     const [errors, setErrors] = useState({})
     const [videoDevices, setVideoDevices] = useState([])
@@ -382,7 +382,7 @@ export default function RetransmisionPage() {
         const w = canvasRef.current.width
         const h = canvasRef.current.height
         ctx.clearRect(0, 0, w, h)
-        
+
         if (lastBoardState) {
             ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"
             ctx.lineWidth = 1
@@ -595,7 +595,7 @@ export default function RetransmisionPage() {
 
         videoEl.addEventListener('loadedmetadata', handleLoadedMetadata)
         videoEl.addEventListener('play', handleLoadedMetadata)
-        
+
         if (videoEl.videoWidth) {
             handleLoadedMetadata()
         }
@@ -741,7 +741,7 @@ export default function RetransmisionPage() {
     const renderVisionArea = () => {
         return (
             <div className="flex flex-col gap-6 flex-1">
-                <div 
+                <div
                     className="relative rounded-2xl overflow-hidden bg-black shadow-md border border-cr-border"
                     style={{ aspectRatio }}
                 >
