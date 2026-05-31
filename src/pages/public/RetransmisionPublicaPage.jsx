@@ -23,7 +23,7 @@ export default function RetransmisionPublicaPage() {
     const { token } = useParams()
     const navigate = useNavigate()
 
-    const [liveFen, setLiveFen] = useState('start')
+    const [liveFen, setLiveFen] = useState('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR')
     const [livePgn, setLivePgn] = useState('')
     const [liveLastMove, setLiveLastMove] = useState(null)
     const [moveType, setMoveType] = useState(null)
@@ -148,6 +148,14 @@ export default function RetransmisionPublicaPage() {
         }
     }, [livePgn])
 
+    const displayFen = viewingMoveIndex === -1
+        ? liveFen
+        : (history[viewingMoveIndex]?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR')
+
+    const displayLastMove = viewingMoveIndex === -1
+        ? liveLastMove
+        : (history[viewingMoveIndex]?.lastMove || null)
+
     useEffect(() => {
         setBoardKey(k => k + 1)
     }, [displayFen])
@@ -183,7 +191,12 @@ export default function RetransmisionPublicaPage() {
 
     const downloadPgn = () => {
         if (!livePgn) return
-        const blob = new Blob([livePgn], { type: 'text/plain;charset=utf-8' })
+        let pgn = livePgn
+        if (evento) pgn = pgn.replace(/\[Event ".*?"\]/, `[Event "${evento}"]`)
+        if (blancas) pgn = pgn.replace(/\[White ".*?"\]/, `[White "${blancas}"]`)
+        if (negras) pgn = pgn.replace(/\[Black ".*?"\]/, `[Black "${negras}"]`)
+        if (resultado && resultado !== '*') pgn = pgn.replace(/\[Result ".*?"\]/, `[Result "${resultado}"]`)
+        const blob = new Blob([pgn], { type: 'text/plain;charset=utf-8' })
         const url = URL.createObjectURL(blob)
         const link = document.createElement('a')
         link.href = url
@@ -202,14 +215,6 @@ export default function RetransmisionPublicaPage() {
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
     }
-
-    const displayFen = viewingMoveIndex === -1
-        ? liveFen
-        : (history[viewingMoveIndex]?.fen || 'start')
-
-    const displayLastMove = viewingMoveIndex === -1
-        ? liveLastMove
-        : (history[viewingMoveIndex]?.lastMove || null)
 
     const pgnMoves = parsePgn(livePgn)
 
