@@ -1,14 +1,7 @@
 /**
  * ---------------------------------------------------------------------------
  * Utilidades para trabajar con formato PGN (Portable Game Notation).
- * Incluye funciones para generar un PGN completo a partir de los datos de una partida,
- * así como para descargarlo como archivo .pgn.
- * 
- * El formato PGN es un estándar para representar partidas de ajedrez, con cabeceras
- * que describen el evento, lugar, fecha, jugadores, resultado, etc., seguidas de los movimientos.
- * 
- * Este módulo se encarga de construir correctamente el PGN a partir de la información
- * proporcionada por el backend, asegurando que se sigan las convenciones del formato.
+ * Incluye funciones para generar un PGN completo a partir de los datos de una partida, así como para descargarlo como archivo .pgn.
  * ----------------------------------------------------------------------------
  */
 
@@ -56,7 +49,7 @@ export function generateFullPgn(partida) {
         headers.push(`[Annotator "Partida ${tipoStr}"]`);
     }
 
-    // Unimos cabeceras, dejamos una línea en blanco y añadimos los movimientos
+    // Unimos cabeceras, dejamos una línea en blanco y añadimos los movimientos (Notación PGN con los movimientos en sistema algebraico).
     const moves = partida.pgn || '';
 
     // Aseguramos que los movimientos no tengan ya cabeceras (limpieza por si acaso)

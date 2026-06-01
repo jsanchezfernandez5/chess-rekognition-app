@@ -11,14 +11,14 @@ import Header from '@/components/layout/Header'
 
 // Componente para configurar el juego antes de comenzar el duelo contra Stockfish
 const ConfigForm = (
-{ 
-    playerColor, 
-    setPlayerColor, 
-    elo, 
-    setElo, 
-    handleStartGame, 
-    eloLevels 
-}) => (
+    {
+        playerColor,
+        setPlayerColor,
+        elo,
+        setElo,
+        handleStartGame,
+        eloLevels
+    }) => (
     <div className="w-full max-w-125 mx-auto flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="mb-10 text-center">
             <h1 className="font-display text-2xl font-black text-cr-text tracking-tight">
@@ -280,17 +280,17 @@ export default function StockfishPage() {
         setModal({
             isOpen: true,
             title: 'Abandonar partida',
-            message: '¿Estás seguro de que quieres darte por vencido y finalizar este duelo?',
+            message: '¿Estás seguro qué deseas abandonar?',
             type: 'confirm',
             confirmLabel: 'Sí, abandonar',
-            cancelLabel: 'No, esperar',
+            cancelLabel: 'No, continuar',
             onConfirm: () => {
                 const resultAtAbandon = playerColor === 'w' ? '0-1' : '1-0'
                 if (moveHistory.length > 0) {
                     setModal({
                         isOpen: true,
                         title: 'Partida finalizada',
-                        message: 'Has abandonado el duelo. ¿Deseas descargar el PGN antes de salir?',
+                        message: 'Partida terminada. ¿Deseas descargar el PGN antes de salir?',
                         type: 'confirm',
                         confirmLabel: 'Descargar PGN',
                         cancelLabel: 'No, gracias',

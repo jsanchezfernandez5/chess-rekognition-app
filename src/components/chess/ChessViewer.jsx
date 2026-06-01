@@ -7,11 +7,6 @@
  * 
  * Props:
  * - partida: Objeto con los datos de la partida, incluyendo al menos un campo 'pgn' con la notación PGN de la partida.
- * 
- * El componente se encarga de parsear el PGN, extraer las jugadas y actualizar el estado del tablero a medida que el usuario navega por la partida.
- * También maneja la reproducción automática de la partida con un intervalo de tiempo entre jugadas.
- * 
- * El diseño es responsivo y se adapta a diferentes tamaños de pantalla, mostrando el tablero centrado y los controles debajo.
  */
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Chessboard } from 'react-chessboard'

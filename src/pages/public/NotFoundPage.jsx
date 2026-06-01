@@ -7,8 +7,7 @@ import { Home } from 'lucide-react'
 /**
  * Página de error 404 (No Encontrado).
  * Se muestra cuando el usuario intenta acceder a una ruta que no existe.
- * Detecta si el usuario tiene una sesión activa para ofrecer el destino
- * más apropiado (Dashboard o Login).
+ * Detecta si el usuario tiene una sesión activa para ofrecer el destino más apropiado (Dashboard o Login).
  * 
  * @returns {JSX.Element} Vista de error 404.
  */

@@ -2,8 +2,6 @@
  * AppRouter.jsx
  * 
  * Define las rutas de la aplicación utilizando React Router. 
- * Incluye rutas públicas (login, registro) y privadas (dashboard, gestión de partidas). 
- * También maneja rutas para retransmisiones públicas y una página 404 para rutas no encontradas.
  * 
  * Rutas definidas:
  * - /login: Página de inicio de sesión (pública)

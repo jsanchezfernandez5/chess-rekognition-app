@@ -1,10 +1,7 @@
 /**
  * Contexto de Autenticación (AuthContext)
  * 
- * Este módulo define el contexto global de autenticación para la aplicación,
- * proporcionando el estado del usuario, los tokens de acceso y refresco, y métodos
- * para iniciar sesión, cerrar sesión, registrar nuevos usuarios y realizar peticiones
- * autorizadas a la API.
+ * Este módulo define el contexto global de autenticación para la aplicación.
  */
 import { createContext, useState, useEffect, useCallback, useRef } from 'react'
 
@@ -32,13 +29,8 @@ export function AuthProvider({ children }) {
     const refreshTokenRef = useRef(refreshToken)
 
     // Sincronización de refs con estados
-    useEffect(() => {
-        tokenRef.current = token
-    }, [token])
-
-    useEffect(() => {
-        refreshTokenRef.current = refreshToken
-    }, [refreshToken])
+    useEffect(() => { tokenRef.current = token }, [token])
+    useEffect(() => { refreshTokenRef.current = refreshToken }, [refreshToken])
 
     // Estado que indica si la validación inicial de sesión está en progreso
     const [loading, setLoading] = useState(true)
@@ -126,7 +118,7 @@ export function AuthProvider({ children }) {
                 } else if (typeof rawDetail === 'string') {
                     message = rawDetail
                 } else if (Array.isArray(rawDetail)) {
-                    message = 'Datos inválidos: ' + rawDetail.map(e => `${e.loc?.at(-1)}: ${e.msg}`).join(', ')
+                    message = 'Datos no válidos: ' + rawDetail.map(e => `${e.loc?.at(-1)}: ${e.msg}`).join(', ')
                 }
 
                 throw new Error(message)
@@ -194,9 +186,7 @@ export function AuthProvider({ children }) {
     }, [])
 
 
-    // Envoltorio (Wrapper) universal de Fetch preparado para enviar
-    // automáticamente el Bearer token almacenado del usuario a endpoints privados.
-    // También maneja la expiración global del token.
+    // Envoltorio (Wrapper) universal de Fetch preparado para enviar automáticamente el Bearer token almacenado del usuario a endpoints privados.
     const authFetch = useCallback(async (path, opts = {}) => {
         const isFormData = opts.body instanceof FormData
         const commonHeaders = {

@@ -19,12 +19,14 @@ export default function Header() {
 
     return (
         <header className="w-full h-32 px-8 md:px-16 flex items-center justify-between bg-white z-10 shrink-0">
+            {/* Logo de la aplicación con enlace al dashboard */}
             <div className="pt-6 pl-4">
                 <Link to="/dashboard" className="transition-opacity hover:opacity-80">
                     <img src="/logo.svg" alt="Chess Rekognition" className="w-65 h-auto" />
                 </Link>
             </div>
 
+            {/* Botón de logout */}
             <button
                 onClick={handleLogout}
                 className="flex flex-col items-center gap-1 group text-cr-muted hover:text-rose-500 transition-colors cursor-pointer shrink-0 mt-6"

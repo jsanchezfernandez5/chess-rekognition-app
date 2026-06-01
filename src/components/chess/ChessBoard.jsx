@@ -105,6 +105,7 @@ export default function ChessBoard({
         setShowPromotionModal(false)
     }
 
+    // Efecto para exponer métodos de control del juego a través de la referencia externa.
     useEffect(() => {
         if (!actionRef) return
         actionRef.current = {
@@ -129,7 +130,7 @@ export default function ChessBoard({
         }
     }, [actionRef, notifyChange])
 
-    return (        
+    return (
         <div className="w-full flex justify-center items-center">
             {/* Tablero de ajedrez. */}
             <div className="w-full aspect-square max-w-125 shadow-2xl rounded-2xl bg-white p-4">
@@ -158,16 +159,16 @@ export default function ChessBoard({
                         { type: 'b', label: 'Alfil', icon: '♗' },
                         { type: 'n', label: 'Caballo', icon: '♘' }
                     ]
-                    .map((p) => (
-                        <button
-                            key={p.type}
-                            onClick={() => handlePromotion(p.type)}
-                            className="flex flex-col items-center justify-center p-4 bg-cr-bg hover:bg-cr-primary hover:text-white rounded-2xl transition-all group"
-                        >
-                            <span className="text-4xl mb-2 group-hover:scale-110 transition-transform">{p.icon}</span>
-                            <span className="text-[10px] uppercase font-black tracking-widest">{p.label}</span>
-                        </button>
-                    ))}
+                        .map((p) => (
+                            <button
+                                key={p.type}
+                                onClick={() => handlePromotion(p.type)}
+                                className="flex flex-col items-center justify-center p-4 bg-cr-bg hover:bg-cr-primary hover:text-white rounded-2xl transition-all group"
+                            >
+                                <span className="text-4xl mb-2 group-hover:scale-110 transition-transform">{p.icon}</span>
+                                <span className="text-[10px] uppercase font-black tracking-widest">{p.label}</span>
+                            </button>
+                        ))}
                 </div>
             </Modal>
         </div>

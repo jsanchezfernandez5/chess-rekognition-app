@@ -11,7 +11,7 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
-import { LayoutDashboard, Edit3, Bot, Video, VideoOff, ClipboardList, LogOut, Menu } from 'lucide-react'
+import { LayoutDashboard, Edit3, Bot, Video, ClipboardList, LogOut, Menu } from 'lucide-react'
 
 // Definición de las rutas de navegación para el menú lateral, con su icono y etiqueta.
 const NAV = [
@@ -59,7 +59,7 @@ export default function AppLayout({ children }) {
                     >
                         <Menu size={24} />
                     </button>
-
+                    { /* Logotipo */}
                     <img src="/logo.svg" alt="Chess Rekognition" className="h-10 md:h-14 w-auto shrink-0" />
                 </div>
 

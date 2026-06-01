@@ -27,7 +27,7 @@ export default function AuthLayout({ children }) {
                 {/* Imagen de fondo */}
                 <img
                     src="./images/tablero_fondo.jpg"
-                    alt="Chess match"
+                    alt="Fondo del tablero"
                     className="absolute inset-0 object-cover w-full h-full opacity-90 mix-blend-multiply"
                 />
 
@@ -36,6 +36,7 @@ export default function AuthLayout({ children }) {
                     <h2 className="font-display text-4xl md:text-5xl font-black text-white mb-5 drop-shadow-md">
                         Chess Rekognition
                     </h2>
+                    {/* Texto con Typewriter */}
                     <div className="text-white/90 text-lg md:text-xl font-medium tracking-wide drop-shadow text-center min-h-8">
                         <TypewriterText />
                     </div>

@@ -35,15 +35,14 @@ Desplegada en producción en **Vercel**: [chess-rekognition-app.vercel.app](http
 ```
 app/
 ├── public/
-│   ├── fonts/              # Figurine (fuente de ajedrez) FIG-TB-1
+│   ├── fonts/              # Figurine (fuente de ajedrez) para el PGN
 │   ├── favicon.ico
 │   └── logo.svg
 ├── src/
 │   ├── components/
 │   │   ├── chess/          # ChessBoard (interactivo), ChessViewer (reproductor PGN)
 │   │   ├── layout/         # AppLayout, AuthLayout, Header
-│   │   └── ui/             # Button, InputText, InputPassword, InputEmail,
-│   │                         InputSelect, InputDate, Textarea, Modal, TypewriterText
+│   │   └── ui/             # Button, InputText, InputPassword, InputEmail, InputSelect, InputDate, Textarea, Modal, TypewriterText
 │   ├── context/
 │   │   └── AuthContext.jsx # Sesión JWT, login/register/logout, authFetch con auto-refresh
 │   ├── hooks/
@@ -51,11 +50,10 @@ app/
 │   ├── pages/
 │   │   ├── auth/           # LoginPage, RegisterPage
 │   │   ├── dashboard/      # DashboardPage
-│   │   ├── games/          # IntroducirPartidaPage, ListadoPartidasPage,
-│   │   │                     RetransmisionPage, StockfishPage
+│   │   ├── games/          # IntroducirPartidaPage, ListadoPartidasPage, RetransmisionPage, StockfishPage
 │   │   └── public/         # RetransmisionPublicaPage, NotFoundPage
 │   ├── router/
-│   │   └── AppRouter.jsx   # Árbol de rutas con guards público/privado
+│   │   └── AppRouter.jsx   # Árbol de rutas Privado/Público
 │   ├── utils/
 │   │   └── pgnUtils.js     # generateFullPgn, parsePgn, downloadPgn
 │   ├── App.jsx
@@ -64,8 +62,8 @@ app/
 ├── .env
 ├── eslint.config.js
 ├── index.html
-├── jsconfig.json           # Alias @ → src/
-├── vercel.json             # Rewrites SPA para Vercel
+├── jsconfig.json           
+├── vercel.json             # Vercel
 ├── vite.config.js
 └── package.json
 ```
@@ -74,25 +72,25 @@ app/
 
 | Ruta | Página | Acceso |
 |------|--------|--------|
-| `/login` | LoginPage | Público (redirige a dashboard si autenticado) |
-| `/register` | RegisterPage | Público (redirige a dashboard si autenticado) |
+| `/login` | LoginPage | Público |
+| `/register` | RegisterPage | Público |
 | `/dashboard` | DashboardPage | Privado |
 | `/games/input` | IntroducirPartidaPage | Privado |
 | `/games` | ListadoPartidasPage | Privado |
 | `/games/live` | RetransmisionPage | Privado |
 | `/stockfish` | StockfishPage | Privado |
-| `/retransmision/:token` | RetransmisionPublicaPage | Público total |
-| `*` | NotFoundPage | Público total |
+| `/retransmision/:token` | RetransmisionPublicaPage | Público |
+| `*` | NotFoundPage | Público |
 
 ## Páginas
 
-- **LoginPage** — formulario de inicio de sesión con credenciales de demostración
-- **RegisterPage** — registro de nuevo usuario (nombre, apellidos, username, email, password)
+- **LoginPage** — formulario de inicio de sesión
+- **RegisterPage** — registro de nuevo usuario
 - **DashboardPage** — menú principal con accesos a las funcionalidades
-- **IntroducirPartidaPage** — entrada manual de partidas con tablero interactivo, formulario de metadatos y guardado vía API
-- **ListadoPartidasPage** — listado de partidas del usuario con visor PGN, reproducción y descarga
-- **RetransmisionPage** — retransmisión en vivo: captura de cámara, reconocimiento por visión, WebSocket host, tablero mínimo, modal de compartir
-- **StockfishPage** — juego contra Stockfish: configuración de color y nivel ELO (1350–3100), board interactivo, abandono/tablas, descarga PGN
+- **IntroducirPartidaPage** — entrada manual de partidas con tablero interactivo
+- **ListadoPartidasPage** — listado de partidas del usuario con visor PGN y descarga
+- **StockfishPage** — jugar contra Stockfish: configuración de color y nivel ELO (1350–3100)
+- **RetransmisionPage** — retransmisión en vivo: captura de cámara, reconocimiento por visión IA, WebSocket host, tablero en consola y compartir retransmisión al público
 - **RetransmisionPublicaPage** — visor público de retransmisión vía WebSocket usando token de la URL
 - **NotFoundPage** — página 404 con redirección contextual
 
@@ -101,13 +99,10 @@ app/
 - Sesión gestionada por `AuthContext` (Context API)
 - Tokens JWT almacenados en `localStorage` como `cr_token` (access, 30 min) y `cr_refresh_token` (refresh, 7 días)
 - `authFetch` envuelve `fetch` añadiendo automáticamente el Bearer token y refrescándolo si el servidor responde 401
-- Rehidratación de sesión al recargar la página
 
 ## Convenciones
 
 - Tipo de partida: `PI` (manual), `PR` (retransmisión)
-- Clases de clasificación: `empty`, `w_P`, `b_N`, etc.
-- Tablero rectificado siempre a 400×400 px (50×50 por casilla)
 
 ## Despliegue
 

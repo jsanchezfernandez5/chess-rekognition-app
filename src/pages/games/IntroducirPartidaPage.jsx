@@ -126,6 +126,7 @@ export default function IntroducirPartidaPage() {
                 observaciones: formData.observaciones || null
             }
 
+            // Guardamos la partida con los metadatos.
             const res = await authFetch('/partidas/', {
                 method: 'POST',
                 body: JSON.stringify(payload)
@@ -133,7 +134,7 @@ export default function IntroducirPartidaPage() {
 
             if (!res.ok) {
                 const errorData = await res.json()
-                throw new Error(errorData.detail || 'Algo ha fallado al intentar guardar')
+                throw new Error(errorData.detail || 'Algo ha fallado al intentar guardar... Lo sentimos, inténtelo más tarde.')
             }
 
             // Si la respuesta es exitosa, mostramos un modal de éxito y redirigimos al dashboard

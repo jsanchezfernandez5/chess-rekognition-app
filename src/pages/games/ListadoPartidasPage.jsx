@@ -116,7 +116,7 @@ export default function ListadoPartidasPage() {
                         {partidaSeleccionada && (
                             <div className="mb-8 text-center bg-cr-bg/50 p-6 rounded-[30px] border border-cr-border/40">
                                 <p className="text-[10px] uppercase font-black tracking-widest text-cr-muted mb-2 opacity-60">
-                                    {partidaSeleccionada.evento || 'Partida de Ajedrez'}
+                                    Evento: {partidaSeleccionada.evento || 'Partida de Ajedrez'}
                                 </p>
                                 <div className="flex items-center justify-center gap-4 text-cr-text">
                                     <span className="font-display text-xl font-bold">{partidaSeleccionada.blancas}</span>
@@ -127,7 +127,7 @@ export default function ListadoPartidasPage() {
                                     Resultado: {partidaSeleccionada.resultado}
                                 </div>
                                 <div className="mt-1 text-[11px] text-cr-muted font-bold opacity-70">
-                                    {new Date(partidaSeleccionada.fecha).toLocaleDateString('es-ES')} {partidaSeleccionada.lugar ? `· ${partidaSeleccionada.lugar}` : ''}
+                                    Fecha: {new Date(partidaSeleccionada.fecha).toLocaleDateString('es-ES')} {partidaSeleccionada.lugar ? `· Población: ${partidaSeleccionada.lugar}` : ''}
                                 </div>
                             </div>
                         )}

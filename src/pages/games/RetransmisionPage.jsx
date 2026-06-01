@@ -1,3 +1,19 @@
+/**
+ * Página de retransmisión de partidas de ajedrez en tiempo real.
+ *
+ * Flujo principal:
+ *   1. El usuario rellena el formulario de configuración (evento, jugadores, lugar, ronda, tablero).
+ *   2. Al activar la Visión IA: crea la retransmisión en la API, abre el WebSocket con el servidor e inicia la cámara del dispositivo.
+ *   3. El usuario calibra el tablero (detección automática de la homografía o manual con 4 puntos).
+ *   4. Con la detección automática activa, cada 500ms captura un frame, lo envía a /vision/detect-move.
+ *   5. Los espectadores reciben las actualizaciones en tiempo real a través de /retransmision/ws/viewer/{token}.
+ *   6. Al finalizar, guarda la partida en /partidas y redirige a /games.
+ *
+ * Estructura de tres paneles (desktop) / tres tabs (móvil):
+ *   - Configuración: formulario de metadatos de la partida.
+ *   - Visión IA:     cámara, calibración, detección automática, PGN y resultado.
+ *   - Consola:       tablero rectificado en vista cenital y registro de actividad.
+ */
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Chess } from 'chess.js'
@@ -15,18 +31,30 @@ export default function RetransmisionPage() {
     const { authFetch } = useAuth()
     const navigate = useNavigate()
 
+    // Instancia de chess.js: mantiene el estado del tablero y valida movimientos
     const game = useRef(new Chess())
+    // Conexión WebSocket activa con el servidor de retransmisión
     const wsRef = useRef(null)
+    // ID del setInterval de detección automática (cada 500ms)
     const intervalRef = useRef(null)
+    // Semáforo: evita llamadas concurrentes a /vision/detect-move
     const detectingRef = useRef(false)
+    // Contador de frames sin movimiento detectado (para mostrar "mano detectada")
     const missCountRef = useRef(0)
+    // ID de la retransmisión en la BD (copia en ref para acceder desde cleanup)
     const retransmisionIdRef = useRef(null)
+    // Referencia al elemento <video> del DOM para acceder al stream de la cámara
     const videoRef = useRef(null)
+    // Referencia al <canvas> superpuesto al vídeo para dibujar el overlay
     const canvasRef = useRef(null)
+    // ID del setInterval que envía "ping" al WebSocket cada 30s (heartbeat)
     const pingIntervalRef = useRef(null)
+    // ID del setTimeout de reconexión automática tras desconexión inesperada
     const reconnectTimeoutRef = useRef(null)
+    // Flag: true si el usuario cerró voluntariamente (evita reconexión automática)
     const isExplicitlyClosedRef = useRef(false)
 
+    // Número de frames consecutivos sin movimiento antes de mostrar aviso de "mano detectada"
     const MISS_THRESHOLD = 3
 
     const [isCamActive, setIsCamActive] = useState(false)
@@ -62,6 +90,9 @@ export default function RetransmisionPage() {
     const [videoDevices, setVideoDevices] = useState([])
     const [deviceIndex, setDeviceIndex] = useState(0)
 
+    // -------------------------------------------------------
+    // Libera todos los recursos al desmontar el componente
+    // -------------------------------------------------------
     const cleanup = useCallback(async () => {
         isExplicitlyClosedRef.current = true
         clearInterval(intervalRef.current)
@@ -79,6 +110,9 @@ export default function RetransmisionPage() {
         }
     }, [authFetch])
 
+    // -------------------------------------------------------
+    // Obtiene la lista de dispositivos de vídeo disponibles
+    // -------------------------------------------------------
     const getDevices = useCallback(async () => {
         if (!navigator.mediaDevices) {
             console.warn("navigator.mediaDevices no está disponible")
@@ -90,10 +124,10 @@ export default function RetransmisionPage() {
             setVideoDevices(videoInputs)
 
             if (videoInputs.length > 0 && videoInputs[0].label) {
-                const backCamIdx = videoInputs.findIndex(d => 
-                    d.label.toLowerCase().includes('back') || 
-                    d.label.toLowerCase().includes('rear') || 
-                    d.label.toLowerCase().includes('trasera') || 
+                const backCamIdx = videoInputs.findIndex(d =>
+                    d.label.toLowerCase().includes('back') ||
+                    d.label.toLowerCase().includes('rear') ||
+                    d.label.toLowerCase().includes('trasera') ||
                     d.label.toLowerCase().includes('environment')
                 )
                 if (backCamIdx !== -1) {
@@ -105,8 +139,10 @@ export default function RetransmisionPage() {
         }
     }, [])
 
+    // Notación PGN
     const pgnMoves = parsePgn(pgn)
 
+    // Inicializa las cámaras al montar el componente y limpia los recursos al desmontarlo
     useEffect(() => {
         getDevices()
         return () => {
@@ -114,6 +150,7 @@ export default function RetransmisionPage() {
         }
     }, [getDevices, cleanup])
 
+    // Consola. Mantiene solo las últimas 5 entradas (.slice(0, 5)) para no saturar la UI.
     const addLog = useCallback((msg, status = "success", data = null) => {
         const now = new Date()
         const day = String(now.getDate()).padStart(2, '0')
@@ -150,6 +187,11 @@ export default function RetransmisionPage() {
         setLogs(prev => [{ time: timeStr, status, msg, homografia, piezas, vacias }, ...prev].slice(0, 5))
     }, [])
 
+    // -------------------------------------------------------
+    // Abre la conexión WebSocket con el servidor de retransmisión.
+    // Implementa reconexión automática con delay de 3s ante desconexiones inesperadas.
+    // El heartbeat (ping cada 30s) mantiene la conexión viva a través de proxies y firewalls.
+    // -------------------------------------------------------
     const initWebSocket = useCallback((tokenVal) => {
         if (wsRef.current) {
             wsRef.current.close()
@@ -210,6 +252,10 @@ export default function RetransmisionPage() {
         }
     }, [addLog, formData.evento, formData.blancas, formData.negras, resultado, lastMove])
 
+    // -------------------------------------------------------
+    // Solicita acceso a la cámara y conecta el stream al elemento <video>
+    // Intenta primero con las constraints completas (deviceId exacto) y si falla, hace fallback a facingMode: 'environment' para compatibilidad con móviles.
+    // -------------------------------------------------------
     const startCamera = useCallback(async (deviceIdx = deviceIndex) => {
         if (videoRef.current?.srcObject) {
             videoRef.current.srcObject.getTracks().forEach(t => t.stop())
@@ -262,10 +308,10 @@ export default function RetransmisionPage() {
                     setVideoDevices(videoInputs)
 
                     if (videoInputs.length > 0 && videoInputs[0].label) {
-                        const backCamIdx = videoInputs.findIndex(d => 
-                            d.label.toLowerCase().includes('back') || 
-                            d.label.toLowerCase().includes('rear') || 
-                            d.label.toLowerCase().includes('trasera') || 
+                        const backCamIdx = videoInputs.findIndex(d =>
+                            d.label.toLowerCase().includes('back') ||
+                            d.label.toLowerCase().includes('rear') ||
+                            d.label.toLowerCase().includes('trasera') ||
                             d.label.toLowerCase().includes('environment')
                         )
                         if (backCamIdx !== -1 && deviceIdx === 0) {
@@ -303,6 +349,9 @@ export default function RetransmisionPage() {
         await startCamera(nextIdx)
     }, [deviceIndex, videoDevices, startCamera, addLog])
 
+    // -------------------------------------------------------
+    // Valida el formulario, crea la retransmisión en la API, abre el WebSocket e inicia la cámara.
+    // Se llama al hacer submit del formulario de configuración
     const activarVision = useCallback(async (e) => {
         if (e) e.preventDefault()
         const newErrors = {}
@@ -346,6 +395,10 @@ export default function RetransmisionPage() {
         }
     }, [formData, authFetch, startCamera, initWebSocket, addLog])
 
+    // -------------------------------------------------------
+    // EL CORAZÓN: Captura un frame del vídeo y lo envía a /vision/recognize-board para verificar que el tablero es detectable y la homografía es correcta.
+    // Si hay 4 puntos manuales los incluye como coordenadas de calibración.
+    // -------------------------------------------------------
     const calibrar = useCallback(async () => {
         if (!videoRef.current) return
         setStatus("Calibrando...")
@@ -382,6 +435,7 @@ export default function RetransmisionPage() {
         }
     }, [authFetch, addLog, manualPoints, rotation])
 
+    // Captura el frame actual del vídeo y lo devuelve como Blob JPEG. Se usa tanto en calibrar() como en detectMove()
     const captureFrame = useCallback(() => {
         return new Promise(resolve => {
             const canvas = document.createElement('canvas')
@@ -392,6 +446,9 @@ export default function RetransmisionPage() {
         })
     }, [])
 
+    // -------------------------------------------------------
+    // Añade puntos de calibración manual al hacer clic en el canvas.
+    // -------------------------------------------------------
     const handleCanvasClick = (e) => {
         if (!canvasRef.current) return
         const rect = canvasRef.current.getBoundingClientRect()
@@ -407,6 +464,9 @@ export default function RetransmisionPage() {
         })
     }
 
+    // -------------------------------------------------------
+    // Dibuja sobre el canvas superpuesto al vídeo Se llama en cada cambio de manualPoints o lastBoardState.
+    // -------------------------------------------------------
     const drawOverlay = useCallback(() => {
         const ctx = canvasRef.current?.getContext('2d')
         if (!ctx || !videoRef.current) return
@@ -470,6 +530,12 @@ export default function RetransmisionPage() {
         }
     }, [lastBoardState, manualPoints])
 
+    // -------------------------------------------------------
+    // OTRO CORAZÓN DE LA APP: Captura un frame y lo envía a /vision/detect-move
+    // Es el núcleo de la detección automática: se llama cada 500ms cuando isAutoMode=true.
+    // detectingRef.current actúa como semáforo para evitar llamadas concurrentes.
+    // missCountRef cuenta frames consecutivos sin movimiento para mostrar avisos al usuario.
+    // -------------------------------------------------------
     const detectMove = useCallback(async () => {
         if (detectingRef.current) return
         detectingRef.current = true
@@ -541,17 +607,19 @@ export default function RetransmisionPage() {
         }
     }, [authFetch, captureFrame, addLog, formData.evento, formData.blancas, formData.negras, resultado, manualPoints, rotation])
 
+    // Inicia/detiene el intervalo de detección automática al cambiar isAutoMode
     useEffect(() => {
         if (isAutoMode) {
             setStatus("Escuchando...")
             intervalRef.current = setInterval(detectMove, 500)
         } else {
             clearInterval(intervalRef.current)
-            if (isCalibrated) setStatus("Tablero calibrado ✓")
+            if (isCalibrated) setStatus("¡Tablero calibrado!")
         }
         return () => clearInterval(intervalRef.current)
     }, [isAutoMode, isCalibrated, detectMove])
 
+    // Sincroniza los metadatos de la partida con el WebSocket
     useEffect(() => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({
@@ -566,6 +634,7 @@ export default function RetransmisionPage() {
         }
     }, [resultado, formData.evento, formData.blancas, formData.negras, lastMove])
 
+    // Permite mover piezas manualmente arrastrando en el Chessboard (en caso que se nos caiga todo...).
     const onPieceDrop = useCallback(({ sourceSquare, targetSquare }) => {
         if (!isVisionActive) return false
 
@@ -642,6 +711,10 @@ export default function RetransmisionPage() {
         drawOverlay()
     }, [manualPoints, lastBoardState, drawOverlay])
 
+    // -------------------------------------------------------
+    // Finaliza la retransmisión y guarda la partida en la BD
+    // Marca la retransmisión como inactiva, guarda la partida con tipo_partida='PR' y redirige a /games tras 2 segundos.
+    // -------------------------------------------------------
     const finalizeGame = useCallback(async () => {
         if (!confirm("¿Deseas finalizar la retransmisión y guardar la partida?")) return
         isExplicitlyClosedRef.current = true
@@ -674,6 +747,7 @@ export default function RetransmisionPage() {
         }
     }, [retransmisionId, formData, resultado, authFetch, addLog, navigate])
 
+    // Copia el enlace de la retransmisión al portapapeles y muestra feedback visual 2s
     const copyUrl = useCallback(() => {
         const url = `${window.location.origin}/retransmision/${token}`
         navigator.clipboard.writeText(url)
@@ -681,6 +755,7 @@ export default function RetransmisionPage() {
         setTimeout(() => setCopied(false), 2000)
     }, [token])
 
+    // Actualiza formData al escribir en los inputs y limpia el error del campo
     const handleInputChange = (e) => {
         const { name, value } = e.target
         setFormData(prev => ({ ...prev, [name]: value }))
@@ -689,6 +764,7 @@ export default function RetransmisionPage() {
         }
     }
 
+    // Render del formulario de configuración
     const renderConfigForm = () => {
         return (
             <form onSubmit={activarVision} className="flex flex-col gap-5 flex-1 justify-between">
@@ -769,6 +845,7 @@ export default function RetransmisionPage() {
         )
     }
 
+    // Render de la cámara, calibración, detección, PGN y resultado
     const renderVisionArea = () => {
         return (
             <div className="flex flex-col gap-6 flex-1">
@@ -954,6 +1031,7 @@ export default function RetransmisionPage() {
         )
     }
 
+    // Render del tablero rectificado y el registro de actividad
     const renderConsoleArea = () => {
         return (
             <div className="flex flex-col gap-6 flex-1">
@@ -1003,6 +1081,11 @@ export default function RetransmisionPage() {
         )
     }
 
+    // -------------------------------------------------------
+    // JSX PRINCIPAL
+    // Desktop (md+): grid de 3 columnas separadas por bordes verticales
+    // Móvil:         3 tabs con navegación fija en la parte inferior
+    // -------------------------------------------------------
     return (
         <div className="min-h-screen flex flex-col bg-white overflow-x-hidden">
             <Header />
@@ -1067,6 +1150,7 @@ export default function RetransmisionPage() {
                 </button>
             </div>
 
+            {/* Modal para compartir el enlace de la retransmisión con los espectadores */}
             <Modal isOpen={showShareModal} onClose={() => setShowShareModal(false)} title="Compartir Retransmisión">
                 <div className="p-6">
                     <p className="text-cr-muted text-sm mb-4">Envía este enlace a los espectadores para que sigan la partida en vivo:</p>

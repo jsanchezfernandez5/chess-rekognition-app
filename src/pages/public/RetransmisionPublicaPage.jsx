@@ -1,19 +1,25 @@
+/**
+ * Página pública de espectador para seguir una retransmisión de ajedrez en tiempo real.
+ *
+ * Flujo principal:
+ *   1. Al montar el componente, abre una conexión WebSocket a /retransmision/ws/viewer/{token}.
+ *   2. Recibe actualizaciones del tablero (FEN, PGN, último movimiento, metadatos) en tiempo real.
+ *   3. El espectador puede navegar por el historial de jugadas sin perder la sincronización con el directo.
+ *   4. Si el host cierra la retransmisión (código 1000), muestra el banner de "retransmisión finalizada".
+ *   5. Si hay desconexión inesperada, reconecta automáticamente cada 3s.
+ *
+ * Estructura de dos columnas (desktop) / una columna (móvil):
+ *   - Columna izquierda: datos de la partida, tablero interactivo, navegación por historial, PGN y compartir.
+ *   - Columna derecha:   imagen de fondo + texto animado TypewriterText (solo desktop).
+ *
+ * No requiere autenticación: cualquier espectador con el token puede acceder.
+ */
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Chess } from 'chess.js'
 import { Chessboard } from 'react-chessboard'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-    ArrowLeft,
-    ArrowRight,
-    Play,
-    Download,
-    Share2,
-    Copy,
-    Check,
-    LayoutGrid,
-    VideoOff
-} from 'lucide-react'
+import { ArrowLeft, ArrowRight, Play, Download, Share2, Copy, Check, LayoutGrid, VideoOff } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import { parsePgn } from '@/utils/pgnUtils'
@@ -23,6 +29,9 @@ export default function RetransmisionPublicaPage() {
     const { token } = useParams()
     const navigate = useNavigate()
 
+    // -------------------------------------------------------
+    // STATE — datos recibidos en tiempo real por WebSocket
+    // -------------------------------------------------------
     const [liveFen, setLiveFen] = useState('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR')
     const [livePgn, setLivePgn] = useState('')
     const [liveLastMove, setLiveLastMove] = useState(null)
@@ -30,19 +39,26 @@ export default function RetransmisionPublicaPage() {
     const [isConnected, setIsConnected] = useState(false)
     const [isFinished, setIsFinished] = useState(false)
 
+    // Metadatos de la partida recibidos por WebSocket
     const [evento, setEvento] = useState('')
     const [blancas, setBlancas] = useState('')
     const [negras, setNegras] = useState('')
     const [resultado, setResultado] = useState('*')
 
+    // -------------------------------------------------------
+    // STATE navegación por el historial de jugadas
+    // -------------------------------------------------------
     const [viewingMoveIndex, setViewingMoveIndex] = useState(-1)
     const [showShareModal, setShowShareModal] = useState(false)
     const [copied, setCopied] = useState(false)
 
+    // IMPORTANTE: boardKey se incrementa cada vez que cambia displayFen para forzar el re-render del Chessboard.
     const [boardKey, setBoardKey] = useState(0)
 
+    // Referencia al WebSocket activo (no provoca re-render al cambiar)
     const wsRef = useRef(null)
 
+    // useEffect principal — gestiona toda la lógica del WebSocket
     useEffect(() => {
         let active = true
         let socket = null
@@ -126,6 +142,13 @@ export default function RetransmisionPublicaPage() {
         }
     }, [token])
 
+    // -------------------------------------------------------
+    // Reconstruye el historial completo de posiciones desde el PGN. 
+    // useMemo evita recalcularlo en cada render; solo se recalcula cuando cambia livePgn.
+    // history[0]        = posición inicial (antes del primer movimiento)
+    // history[i]        = posición tras el movimiento i-1
+    // history[length-1] = posición actual (igual que liveFen)
+    // -------------------------------------------------------
     const history = useMemo(() => {
         if (!livePgn) return []
         const tempChess = new Chess()
@@ -148,6 +171,7 @@ export default function RetransmisionPublicaPage() {
         }
     }, [livePgn])
 
+    // displayFen/displayLastMove — posición a mostrar en el tablero según el modo (directo o revisión)
     const displayFen = viewingMoveIndex === -1
         ? liveFen
         : (history[viewingMoveIndex]?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR')
@@ -156,10 +180,12 @@ export default function RetransmisionPublicaPage() {
         ? liveLastMove
         : (history[viewingMoveIndex]?.lastMove || null)
 
+    // Fuerza el re-render del componente Chessboard cuando cambia la posición
     useEffect(() => {
         setBoardKey(k => k + 1)
     }, [displayFen])
 
+    // getMoveLabel — convierte el tipo de movimiento a su notación y descripción legible
     const getMoveLabel = (type) => {
         const labels = {
             'castling_short': 'O-O | Enroque corto',
@@ -170,6 +196,7 @@ export default function RetransmisionPublicaPage() {
         return labels[type] || type
     }
 
+    // Navegación paso a paso del historial de movimientos
     const handlePrev = () => {
         if (history.length <= 1) return
         if (viewingMoveIndex === -1) {
@@ -179,6 +206,7 @@ export default function RetransmisionPublicaPage() {
         }
     }
 
+    // Navegación paso a paso del historial de movimientos
     const handleNext = () => {
         if (viewingMoveIndex === -1) return
         const nextIndex = viewingMoveIndex + 1
@@ -189,6 +217,7 @@ export default function RetransmisionPublicaPage() {
         }
     }
 
+    // Descarga el PGN con los metadatos actualizados
     const downloadPgn = () => {
         if (!livePgn) return
         let pgn = livePgn
@@ -210,14 +239,20 @@ export default function RetransmisionPublicaPage() {
         URL.revokeObjectURL(url)
     }
 
+    // Copia la URL actual al portapapeles y muestra feedback visual durante 2s
     const copyUrl = () => {
         navigator.clipboard.writeText(window.location.href)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
     }
 
+    // Convierte el PGN a un array de movimientos
     const pgnMoves = parsePgn(livePgn)
 
+    // -------------------------------------------------------
+    // renderLeftColumn — panel izquierdo compartido entre desktop y móvil
+    // Contiene: metadatos, tablero, controles de navegación, PGN y acciones
+    // -------------------------------------------------------
     const renderLeftColumn = () => {
         return (
             <div className="flex flex-col gap-6">
@@ -282,8 +317,8 @@ export default function RetransmisionPublicaPage() {
                             type="button"
                             onClick={() => setViewingMoveIndex(-1)}
                             className={`p-2 rounded-lg transition-colors cursor-pointer ${viewingMoveIndex === -1
-                                    ? 'text-cr-primary bg-cr-primary-light animate-pulse font-bold'
-                                    : 'text-cr-muted hover:text-cr-primary hover:bg-cr-primary-light'
+                                ? 'text-cr-primary bg-cr-primary-light animate-pulse font-bold'
+                                : 'text-cr-muted hover:text-cr-primary hover:bg-cr-primary-light'
                                 }`}
                             title="Volver al directo"
                         >
@@ -343,6 +378,7 @@ export default function RetransmisionPublicaPage() {
                 </div>
 
                 <div className="flex gap-3">
+                    {/* DE MOMENTO NO HAY QRCODE - IMPLEMENTAR EN POSTERIORES FUNCIONALIDADES... */}
                     <div className="flex items-center justify-center p-3 bg-cr-surface2 border border-cr-border rounded-xl text-cr-muted">
                         <LayoutGrid size={20} />
                     </div>
@@ -359,6 +395,12 @@ export default function RetransmisionPublicaPage() {
         )
     }
 
+    // -------------------------------------------------------
+    // JSX PRINCIPAL
+    // Header: logo + indicador de conexión (verde pulsante = en directo)
+    // Desktop (md+): grid de 2 columnas — tablero + panel decorativo con TypewriterText
+    // Móvil:         columna única con solo el panel izquierdo
+    // -------------------------------------------------------
     return (
         <div className="min-h-screen flex flex-col bg-white overflow-x-hidden">
             <header className="w-full h-24 px-8 md:px-16 flex items-center justify-between bg-white border-b border-cr-border/40 shrink-0">
@@ -430,6 +472,7 @@ export default function RetransmisionPublicaPage() {
                 {renderLeftColumn()}
             </div>
 
+            {/* Modal para compartir el enlace con otros espectadores */}
             <Modal isOpen={showShareModal} onClose={() => setShowShareModal(false)} title="Compartir Retransmisión">
                 <div className="p-6">
                     <p className="text-cr-muted text-sm mb-4">Envía este enlace a otros espectadores para que sigan la partida en vivo:</p>
