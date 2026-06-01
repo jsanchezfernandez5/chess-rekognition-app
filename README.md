@@ -8,7 +8,7 @@ Desplegada en producción en **Vercel**: [chess-rekognition-app.vercel.app](http
 | Capa | Tecnología |
 |------|-----------|
 | UI | React 19, React DOM 19 |
-| Routing | React Router DOM 7 (protegido por auth guards) |
+| Routing | React Router DOM 7 |
 | Estilos | Tailwind CSS 4 (vía `@theme` en `index.css`), Framer Motion 12 |
 | Iconos | Lucide React 0.577 |
 | Ajedrez | chess.js 1.4 (motor lógico), react-chessboard 5.10 (tablero visual) |
@@ -84,15 +84,15 @@ app/
 
 ## Páginas
 
-- **LoginPage** — formulario de inicio de sesión
-- **RegisterPage** — registro de nuevo usuario
-- **DashboardPage** — menú principal con accesos a las funcionalidades
-- **IntroducirPartidaPage** — entrada manual de partidas con tablero interactivo
-- **ListadoPartidasPage** — listado de partidas del usuario con visor PGN y descarga
-- **StockfishPage** — jugar contra Stockfish: configuración de color y nivel ELO (1350–3100)
-- **RetransmisionPage** — retransmisión en vivo: captura de cámara, reconocimiento por visión IA, WebSocket host, tablero en consola y compartir retransmisión al público
-- **RetransmisionPublicaPage** — visor público de retransmisión vía WebSocket usando token de la URL
-- **NotFoundPage** — página 404 con redirección contextual
+- **LoginPage**: Formulario de inicio de sesión.
+- **RegisterPage**: Registro de nuevo usuario y envío de email de confirmación con Resend.
+- **DashboardPage**: Menú principal con accesos a las funcionalidades.
+- **IntroducirPartidaPage**: Entrada manual de partidas con tablero interactivo.
+- **ListadoPartidasPage**: Listado de partidas del usuario con visor PGN y descarga.
+- **StockfishPage**: Jugar contra Stockfish con configuración de color y nivel ELO (1350–3100).
+- **RetransmisionPage**: Retransmisión en vivo: captura de cámara, reconocimiento por visión IA, WebSocket host, tablero en consola y compartir retransmisión al público.
+- **RetransmisionPublicaPage**: Visor público de retransmisión vía WebSocket usando token de la URL.
+- **NotFoundPage**: Página 404.
 
 ## Flujo de autenticación
 
@@ -102,7 +102,11 @@ app/
 
 ## Convenciones
 
-- Tipo de partida: `PI` (manual), `PR` (retransmisión)
+- Tipos de partida: `PI` (manual), `PR` (retransmisión)
+
+## Notas sobre uso de Inteligencia Artificial usada en la implementación:
+
+> Uso de Gemeni para Tailwind respecto al diseño de las páginas y ayuda en el desarrollo en las páginas de RetransmisionPage y RetransmisionPublicaPage.
 
 ## Despliegue
 
