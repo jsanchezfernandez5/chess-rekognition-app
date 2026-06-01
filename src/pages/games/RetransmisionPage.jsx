@@ -88,6 +88,18 @@ export default function RetransmisionPage() {
             const devices = await navigator.mediaDevices.enumerateDevices()
             const videoInputs = devices.filter(d => d.kind === 'videoinput')
             setVideoDevices(videoInputs)
+
+            if (videoInputs.length > 0 && videoInputs[0].label) {
+                const backCamIdx = videoInputs.findIndex(d => 
+                    d.label.toLowerCase().includes('back') || 
+                    d.label.toLowerCase().includes('rear') || 
+                    d.label.toLowerCase().includes('trasera') || 
+                    d.label.toLowerCase().includes('environment')
+                )
+                if (backCamIdx !== -1) {
+                    setDeviceIndex(backCamIdx)
+                }
+            }
         } catch (err) {
             console.error(err)
         }
@@ -235,6 +247,11 @@ export default function RetransmisionPage() {
 
             if (videoRef.current) {
                 videoRef.current.srcObject = stream
+                try {
+                    await videoRef.current.play()
+                } catch (playErr) {
+                    console.warn("Error al reproducir el vídeo automáticamente:", playErr)
+                }
                 setIsCamActive(true)
                 setStatus("Tablero no calibrado")
                 addLog("Cámara iniciada", "success")
@@ -243,6 +260,18 @@ export default function RetransmisionPage() {
                     const devices = await navigator.mediaDevices.enumerateDevices()
                     const videoInputs = devices.filter(d => d.kind === 'videoinput')
                     setVideoDevices(videoInputs)
+
+                    if (videoInputs.length > 0 && videoInputs[0].label) {
+                        const backCamIdx = videoInputs.findIndex(d => 
+                            d.label.toLowerCase().includes('back') || 
+                            d.label.toLowerCase().includes('rear') || 
+                            d.label.toLowerCase().includes('trasera') || 
+                            d.label.toLowerCase().includes('environment')
+                        )
+                        if (backCamIdx !== -1 && deviceIdx === 0) {
+                            setDeviceIndex(backCamIdx)
+                        }
+                    }
                 } catch (e) {
                     console.error(e)
                 }
@@ -308,8 +337,8 @@ export default function RetransmisionPage() {
             setToken(data.token)
             initWebSocket(data.token)
             setIsVisionActive(true)
-            await startCamera()
             setActiveTab('vision')
+            await startCamera()
             addLog("Visión IA activada", "success")
         } catch (err) {
             addLog("Error al inicializar retransmisión: " + err.message, "error")
@@ -998,24 +1027,18 @@ export default function RetransmisionPage() {
                 </div>
             </div>
             <div className="flex-1 md:hidden flex flex-col p-6 pb-24 mt-4">
-                {activeTab === 'config' && (
-                    <div className="flex flex-col gap-5 animate-in fade-in duration-300">
-                        <h2 className="font-display text-lg font-black text-cr-text tracking-tight">Configuración</h2>
-                        {renderConfigForm()}
-                    </div>
-                )}
-                {activeTab === 'vision' && (
-                    <div className="flex flex-col gap-5 animate-in fade-in duration-300">
-                        <h2 className="font-display text-lg font-black text-cr-text tracking-tight">Visión IA</h2>
-                        {renderVisionArea()}
-                    </div>
-                )}
-                {activeTab === 'consola' && (
-                    <div className="flex flex-col gap-5 animate-in fade-in duration-300">
-                        <h2 className="font-display text-lg font-black text-cr-text tracking-tight">Consola</h2>
-                        {renderConsoleArea()}
-                    </div>
-                )}
+                <div className={`flex flex-col gap-5 animate-in fade-in duration-300 ${activeTab === 'config' ? '' : 'hidden'}`}>
+                    <h2 className="font-display text-lg font-black text-cr-text tracking-tight">Configuración</h2>
+                    {renderConfigForm()}
+                </div>
+                <div className={`flex flex-col gap-5 animate-in fade-in duration-300 ${activeTab === 'vision' ? '' : 'hidden'}`}>
+                    <h2 className="font-display text-lg font-black text-cr-text tracking-tight">Visión IA</h2>
+                    {renderVisionArea()}
+                </div>
+                <div className={`flex flex-col gap-5 animate-in fade-in duration-300 ${activeTab === 'consola' ? '' : 'hidden'}`}>
+                    <h2 className="font-display text-lg font-black text-cr-text tracking-tight">Consola</h2>
+                    {renderConsoleArea()}
+                </div>
             </div>
             <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-cr-border flex items-stretch z-50">
                 <button

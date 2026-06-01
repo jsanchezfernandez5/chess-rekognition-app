@@ -11,13 +11,13 @@ import Header from '@/components/layout/Header'
 
 // Componente para configurar el juego antes de comenzar el duelo contra Stockfish
 const ConfigForm = (
-    { 
-        playerColor, 
-        setPlayerColor, 
-        elo, 
-        setElo, 
-        handleStartGame, 
-        eloLevels 
+{ 
+    playerColor, 
+    setPlayerColor, 
+    elo, 
+    setElo, 
+    handleStartGame, 
+    eloLevels 
 }) => (
     <div className="w-full max-w-125 mx-auto flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="mb-10 text-center">
