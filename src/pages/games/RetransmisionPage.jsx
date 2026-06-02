@@ -1043,6 +1043,7 @@ export default function RetransmisionPage() {
                                 position: currentFen,
                                 onPieceDrop: onPieceDrop,
                                 allowDragging: isVisionActive,
+                                showAnimations: false,
                                 squareStyles: {
                                     ...(lastMove && {
                                         [lastMove.from]: { backgroundColor: 'rgba(255, 255, 0, 0.4)' },
