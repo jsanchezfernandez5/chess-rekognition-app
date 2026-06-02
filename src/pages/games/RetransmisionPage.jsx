@@ -74,7 +74,6 @@ export default function RetransmisionPage() {
     const [isVisionActive, setIsVisionActive] = useState(false)
     const [activeTab, setActiveTab] = useState('config')
     const [manualPoints, setManualPoints] = useState([])
-    const [lastBoardState, setLastBoardState] = useState(null)
     const [rotation, setRotation] = useState(0)
     const [aspectRatio, setAspectRatio] = useState('16/9')
     const [resultado, setResultado] = useState('*')
@@ -425,6 +424,9 @@ export default function RetransmisionPage() {
                 setIsCalibrated(true)
                 setStatus("Tablero calibrado ✓")
                 addLog("Calibración exitosa", "success", data)
+                if (data.corners) {
+                    setManualPoints(data.corners.map(pt => ({ x: pt[0], y: pt[1] })))
+                }
             } else {
                 setIsCalibrated(false)
                 setStatus("Calibración fallida — ajusta el encuadre")
@@ -433,7 +435,7 @@ export default function RetransmisionPage() {
         } catch (err) {
             addLog("Error de red en calibración: " + err.message, "error")
         }
-    }, [authFetch, addLog, manualPoints, rotation])
+    }, [authFetch, addLog, manualPoints, rotation, setManualPoints])
 
     // Captura el frame actual del vídeo y lo devuelve como Blob JPEG. Se usa tanto en calibrar() como en detectMove()
     const captureFrame = useCallback(() => {
@@ -474,33 +476,6 @@ export default function RetransmisionPage() {
         const h = canvasRef.current.height
         ctx.clearRect(0, 0, w, h)
 
-        if (lastBoardState) {
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"
-            ctx.lineWidth = 1
-            const size = Math.min(w, h) * 0.8
-            const x0 = (w - size) / 2
-            const y0 = (h - size) / 2
-            const cell = size / 8
-            for (let i = 0; i <= 8; i++) {
-                ctx.beginPath(); ctx.moveTo(x0 + i * cell, y0); ctx.lineTo(x0 + i * cell, y0 + size); ctx.stroke()
-                ctx.beginPath(); ctx.moveTo(x0, y0 + i * cell); ctx.lineTo(x0 + size, y0 + i * cell); ctx.stroke()
-            }
-            Object.entries(lastBoardState).forEach(([sq, val]) => {
-                if (val.label !== 'empty') {
-                    const col = sq.charCodeAt(0) - 97
-                    const row = 8 - parseInt(sq[1])
-                    const cx = x0 + col * cell + cell / 2
-                    const cy = y0 + row * cell + cell / 2
-                    ctx.fillStyle = val.label.startsWith('w') ? "rgba(230, 239, 250, 0.8)" : "rgba(32, 78, 173, 0.8)"
-                    ctx.beginPath(); ctx.arc(cx, cy, cell * 0.3, 0, Math.PI * 2); ctx.fill()
-                    ctx.fillStyle = val.label.startsWith('w') ? "#204ead" : "#ffffff"
-                    ctx.font = "10px sans-serif"
-                    ctx.textAlign = "center"
-                    ctx.fillText(val.label.split('_')[1], cx, cy + 3)
-                }
-            })
-        }
-
         if (manualPoints.length > 0) {
             ctx.lineWidth = 2
             ctx.strokeStyle = "#10b981"
@@ -528,7 +503,7 @@ export default function RetransmisionPage() {
                 ctx.fillText(String(index + 1), px, py + 3)
             })
         }
-    }, [lastBoardState, manualPoints])
+    }, [manualPoints])
 
     // -------------------------------------------------------
     // OTRO CORAZÓN DE LA APP: Captura un frame y lo envía a /vision/detect-move
@@ -562,7 +537,6 @@ export default function RetransmisionPage() {
                 }
                 return
             }
-            setLastBoardState(data.board_state)
             if (data.found) {
                 missCountRef.current = 0
                 const move = data.move
@@ -706,10 +680,10 @@ export default function RetransmisionPage() {
         }
     }, [isCamActive, drawOverlay])
 
-    // Redibujar el overlay cuando cambien los puntos manuales o el estado del tablero
+    // Redibujar el overlay cuando cambien los puntos de contorno
     useEffect(() => {
         drawOverlay()
-    }, [manualPoints, lastBoardState, drawOverlay])
+    }, [manualPoints, drawOverlay])
 
     // -------------------------------------------------------
     // Finaliza la retransmisión y guarda la partida en la BD
@@ -1053,6 +1027,15 @@ export default function RetransmisionPage() {
                             }}
                         />
                     </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-cr-muted">FEN de la posición</span>
+                    <input
+                        type="text"
+                        readOnly
+                        value={currentFen}
+                        className="w-full px-3 py-2 bg-cr-surface2 border border-cr-border rounded-xl font-mono text-[10px] text-cr-text select-all outline-hidden"
+                    />
                 </div>
                 <div className="flex flex-col gap-2 flex-1">
                     <span className="text-[11px] font-semibold uppercase tracking-widest text-cr-muted">Registro de actividad</span>
