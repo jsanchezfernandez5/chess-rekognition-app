@@ -106,7 +106,7 @@ app/
 
 ## Notas sobre uso de Inteligencia Artificial usada en la implementación:
 
-> Uso de Gemeni para Tailwind respecto al diseño de las páginas y ayuda en el desarrollo en las páginas de RetransmisionPage y RetransmisionPublicaPage.
+> Uso de IA generativa para Tailwind respecto al diseño de las páginas y ayuda en el desarrollo en las páginas de RetransmisionPage y RetransmisionPublicaPage.
 
 ## Despliegue
 
