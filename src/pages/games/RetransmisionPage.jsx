@@ -59,6 +59,10 @@ export default function RetransmisionPage() {
     const videoCanvasRef = useRef(null)
     // ID del setInterval que envía frames de vídeo por WebSocket (relay al espectador)
     const videoIntervalRef = useRef(null)
+    // Flag: true mientras el bucle de vídeo estuvo realmente enviando frames. Sirve para
+    // avisar a los viewers (video_stopped) SOLO cuando el vídeo se corta de verdad, no en
+    // cada re-ejecución del efecto con el toggle apagado.
+    const wasEnviandoVideoRef = useRef(false)
 
     // Número de frames consecutivos sin movimiento antes de mostrar aviso de "mano detectada"
     const MISS_THRESHOLD = 3
@@ -486,14 +490,38 @@ export default function RetransmisionPage() {
         }
     }, [])
 
+    // Avisa a los viewers de que el vídeo en directo ha terminado enviando {"type":"video_stopped"}
+    // por el WebSocket. Sin este aviso, el espectador se quedaría congelado en el último frame
+    // recibido hasta el timeout de inactividad (o para siempre si el host sigue conectado).
+    // Se invoca al apagar el toggle, al parar la cámara y al desmontar la página; el ref
+    // wasEnviandoVideoRef evita enviar avisos duplicados.
+    const notificarFinVideo = useCallback(() => {
+        if (!wasEnviandoVideoRef.current) return
+        wasEnviandoVideoRef.current = false
+        const ws = wsRef.current
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            try {
+                ws.send(JSON.stringify({ type: 'video_stopped' }))
+            } catch {
+                // El WebSocket se está cerrando: los viewers lo detectarán por el cierre.
+            }
+        }
+    }, [])
+
     // Arranca/para el bucle de envío de vídeo según el toggle y la cámara.
     useEffect(() => {
         if (shareVideo && isCamActive) {
+            wasEnviandoVideoRef.current = true
             videoIntervalRef.current = setInterval(enviarFrameVideo, 200)   // ≈5 fps
-            return () => clearInterval(videoIntervalRef.current)
+        } else {
+            clearInterval(videoIntervalRef.current)
+            notificarFinVideo()
         }
-        clearInterval(videoIntervalRef.current)
-    }, [shareVideo, isCamActive, enviarFrameVideo])
+        return () => {
+            clearInterval(videoIntervalRef.current)
+            notificarFinVideo()
+        }
+    }, [shareVideo, isCamActive, enviarFrameVideo, notificarFinVideo])
 
     // -------------------------------------------------------
     // Añade puntos de calibración manual al hacer clic en el canvas.

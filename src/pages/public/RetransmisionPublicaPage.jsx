@@ -7,6 +7,9 @@
  *   3. El espectador puede navegar por el historial de jugadas sin perder la sincronización con el directo.
  *   4. Si el host cierra la retransmisión (código 1000), muestra el banner de "retransmisión finalizada".
  *   5. Si hay desconexión inesperada, reconecta automáticamente cada 3s.
+ *   6. Vídeo en directo OPCIONAL (el host decide): mientras llegan frames {type:"video_frame"}
+ *      se muestran sobre el panel decorativo; se apaga al recibir {type:"video_stopped"},
+ *      tras 5s sin frames (timeout de inactividad) o al cambiar de token.
  *
  * Estructura de dos columnas (desktop) / una columna (móvil):
  *   - Columna izquierda: datos de la partida, tablero interactivo, navegación por historial, PGN y compartir.
@@ -72,6 +75,29 @@ export default function RetransmisionPublicaPage() {
         let socket = null
         let reconnectTimeout = null
         let pingInterval = null
+        let videoIdleTimeout = null
+
+        // Si deja de llegar un video_frame durante VIDEO_IDLE_MS, se asume que el host dejó
+        // de compartir vídeo (p. ej. paró la cámara sin enviar el aviso) y se vuelve al
+        // panel decorativo en vez de quedarse mostrando el último frame congelado.
+        const VIDEO_IDLE_MS = 5000
+
+        // Apaga el vídeo del espectador: limpia refs/estado; los <img> se desmontan solos
+        // porque su renderizado es condicional a videoSrc.
+        const apagarVideo = () => {
+            if (videoIdleTimeout) {
+                clearTimeout(videoIdleTimeout)
+                videoIdleTimeout = null
+            }
+            videoSrcRef.current = null
+            setVideoSrc(null)
+        }
+
+        // Rearma el temporizador de inactividad tras cada frame recibido.
+        const armarVideoIdleTimeout = () => {
+            if (videoIdleTimeout) clearTimeout(videoIdleTimeout)
+            videoIdleTimeout = setTimeout(apagarVideo, VIDEO_IDLE_MS)
+        }
 
         const connect = () => {
             if (!active) return
@@ -110,6 +136,14 @@ export default function RetransmisionPublicaPage() {
                             videoSrcRef.current = data.frame
                             setVideoSrc(data.frame)
                         }
+                        armarVideoIdleTimeout()
+                        return
+                    }
+
+                    // El host dejó de compartir vídeo (apagó el toggle o paró la cámara):
+                    // vuelta inmediata al panel decorativo sin esperar el timeout.
+                    if (data.type === 'video_stopped') {
+                        apagarVideo()
                         return
                     }
 
@@ -159,6 +193,11 @@ export default function RetransmisionPublicaPage() {
             if (socket) socket.close()
             if (reconnectTimeout) clearTimeout(reconnectTimeout)
             if (pingInterval) clearInterval(pingInterval)
+            if (videoIdleTimeout) clearTimeout(videoIdleTimeout)
+            // Cambio de token o desmontaje: descarta el vídeo residual para que la nueva
+            // sesión no herede el último frame congelado de la retransmisión anterior.
+            // (El cleanup se ejecuta ANTES de conectar el socket del nuevo token.)
+            apagarVideo()
         }
     }, [token])
 
