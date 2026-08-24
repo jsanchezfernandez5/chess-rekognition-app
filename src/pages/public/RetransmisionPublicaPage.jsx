@@ -52,11 +52,19 @@ export default function RetransmisionPublicaPage() {
     const [showShareModal, setShowShareModal] = useState(false)
     const [copied, setCopied] = useState(false)
 
-    // IMPORTANTE: boardKey se incrementa cada vez que cambia displayFen para forzar el re-render del Chessboard.
-    const [boardKey, setBoardKey] = useState(0)
+    // IMPORTANTE: el Chessboard usa key={displayFen} para forzar su re-montaje cuando cambia
+    // la posición mostrada (equivalente al antiguo contador boardKey, sin estado extra).
 
     // Referencia al WebSocket activo (no provoca re-render al cambiar)
     const wsRef = useRef(null)
+    // Relay de vídeo en directo: el primer frame monta el panel (un único re-render) y a partir
+    // de ahí los siguientes se escriben DIRECTAMENTE sobre el atributo src del <img> vía ref,
+    // sin re-renderizar la página (~5 veces por segundo).
+    const [videoSrc, setVideoSrc] = useState(null)
+    const videoImgDesktopRef = useRef(null)
+    const videoImgMobileRef = useRef(null)
+    // Espejo en ref del primer frame recibido (evita leer estado dentro de onmessage)
+    const videoSrcRef = useRef(null)
 
     // useEffect principal — gestiona toda la lógica del WebSocket
     useEffect(() => {
@@ -92,6 +100,18 @@ export default function RetransmisionPublicaPage() {
 
                 try {
                     const data = JSON.parse(event.data)
+
+                    // Relay de vídeo del host (OPCIONAL): frame JPEG en dataURL. Se escribe el src
+                    // a pelo sobre los <img> montados para evitar re-renders por segundo.
+                    if (data.type === 'video_frame' && data.frame) {
+                        if (videoImgDesktopRef.current) videoImgDesktopRef.current.src = data.frame
+                        if (videoImgMobileRef.current) videoImgMobileRef.current.src = data.frame
+                        if (!videoSrcRef.current) {
+                            videoSrcRef.current = data.frame
+                            setVideoSrc(data.frame)
+                        }
+                        return
+                    }
 
                     if (data.fen) setLiveFen(data.fen)
                     if (data.pgn) setLivePgn(data.pgn)
@@ -179,11 +199,6 @@ export default function RetransmisionPublicaPage() {
     const displayLastMove = viewingMoveIndex === -1
         ? liveLastMove
         : (history[viewingMoveIndex]?.lastMove || null)
-
-    // Fuerza el re-render del componente Chessboard cuando cambia la posición
-    useEffect(() => {
-        setBoardKey(k => k + 1)
-    }, [displayFen])
 
     // getMoveLabel — convierte el tipo de movimiento a su notación y descripción legible
     const getMoveLabel = (type) => {
@@ -275,7 +290,7 @@ export default function RetransmisionPublicaPage() {
                 </div>
 
                 <div className="relative bg-cr-surface p-4 rounded-2xl border border-cr-border shadow-sm aspect-square w-full max-w-[400px] mx-auto overflow-hidden">
-                    <Chessboard key={boardKey}
+                    <Chessboard key={displayFen}
                         options={{
                             position: displayFen,
                             allowDragging: false,
@@ -436,20 +451,38 @@ export default function RetransmisionPublicaPage() {
                 </div>
 
                 <div className="relative flex flex-col justify-center items-center bg-cr-bg overflow-hidden border border-cr-border rounded-2xl p-8 min-h-[400px]">
-                    <img
-                        src="/images/tablero_fondo.jpg"
-                        alt="Chess match"
-                        className="absolute inset-0 object-cover w-full h-full opacity-90 mix-blend-multiply"
-                    />
+                    {videoSrc ? (
+                        <>
+                            {/* Relay de vídeo del anfitrión: sustituye al panel decorativo mientras haya señal */}
+                            <img
+                                ref={videoImgDesktopRef}
+                                src={videoSrc}
+                                alt="Vídeo en directo del lugar de la partida"
+                                className="absolute inset-0 w-full h-full object-cover"
+                            />
+                            <div className="absolute top-4 left-4 z-20 flex items-center gap-2 px-3 py-1.5 bg-black/60 rounded-full">
+                                <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                                <span className="text-white text-[10px] font-black uppercase tracking-widest">Vídeo en directo</span>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <img
+                                src="/images/tablero_fondo.jpg"
+                                alt="Chess match"
+                                className="absolute inset-0 object-cover w-full h-full opacity-90 mix-blend-multiply"
+                            />
 
-                    <div className="relative z-10 flex flex-col items-center justify-center text-center px-8">
-                        <h2 className="font-display text-3xl md:text-4xl font-black text-white mb-4 drop-shadow-md">
-                            Chess Rekognition
-                        </h2>
-                        <div className="text-white/90 text-md md:text-lg font-medium tracking-wide drop-shadow text-center min-h-8">
-                            <TypewriterText />
-                        </div>
-                    </div>
+                            <div className="relative z-10 flex flex-col items-center justify-center text-center px-8">
+                                <h2 className="font-display text-3xl md:text-4xl font-black text-white mb-4 drop-shadow-md">
+                                    Chess Rekognition
+                                </h2>
+                                <div className="text-white/90 text-md md:text-lg font-medium tracking-wide drop-shadow text-center min-h-8">
+                                    <TypewriterText />
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -457,6 +490,20 @@ export default function RetransmisionPublicaPage() {
                 <h2 className="font-display text-lg font-black text-cr-text tracking-tight">
                     {evento || 'Retransmisión en Directo'}
                 </h2>
+                {videoSrc && (
+                    <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden border border-cr-border">
+                        <img
+                            ref={videoImgMobileRef}
+                            src={videoSrc}
+                            alt="Vídeo en directo del lugar de la partida"
+                            className="w-full h-full object-cover"
+                        />
+                        <div className="absolute top-3 left-3 flex items-center gap-2 px-2.5 py-1 bg-black/60 rounded-full">
+                            <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                            <span className="text-white text-[9px] font-black uppercase tracking-widest">Directo</span>
+                        </div>
+                    </div>
+                )}
                 {isFinished && (
                     <div className="p-4 bg-rose-50 border border-rose-100 rounded-xl flex flex-col items-center text-center gap-3">
                         <VideoOff className="w-8 h-8 text-rose-500" />

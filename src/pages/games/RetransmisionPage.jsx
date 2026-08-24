@@ -55,6 +55,10 @@ export default function RetransmisionPage() {
     const reconnectTimeoutRef = useRef(null)
     // Flag: true si el usuario cerró voluntariamente (evita reconexión automática)
     const isExplicitlyClosedRef = useRef(false)
+    // Canvas offscreen persistente para reescalar los frames del vídeo en directo (evita crear canvas por frame)
+    const videoCanvasRef = useRef(null)
+    // ID del setInterval que envía frames de vídeo por WebSocket (relay al espectador)
+    const videoIntervalRef = useRef(null)
 
     // Número de frames consecutivos sin movimiento antes de mostrar aviso de "mano detectada"
     const MISS_THRESHOLD = 3
@@ -62,6 +66,9 @@ export default function RetransmisionPage() {
     const [isCamActive, setIsCamActive] = useState(false)
     const [isCalibrated, setIsCalibrated] = useState(false)
     const [isAutoMode, setIsAutoMode] = useState(false)
+    // Relay de vídeo OPCIONAL al espectador (privacidad: OFF por defecto). Envía frames JPEG
+    // reescalados por el mismo WebSocket de la retransmisión; el servidor solo los reenvía.
+    const [shareVideo, setShareVideo] = useState(false)
     const [status, setStatus] = useState("Completa el formulario para comenzar")
     const [currentFen, setCurrentFen] = useState(game.current.fen())
     const [lastMove, setLastMove] = useState(null)
@@ -454,6 +461,39 @@ export default function RetransmisionPage() {
             canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.85)
         })
     }, [])
+
+    // -------------------------------------------------------
+    // RELAY DE VÍDEO: captura el frame actual, lo reescala a 480px de ancho (JPEG calidad 0.5
+    // ≈ 15-30KB por frame) y lo envía por el WebSocket de la retransmisión con type=video_frame.
+    // El servidor actúa SOLO como relé hacia los viewers: no decodifica ni cachea vídeo.
+    // -------------------------------------------------------
+    const enviarFrameVideo = useCallback(() => {
+        const ws = wsRef.current
+        const video = videoRef.current
+        if (!ws || ws.readyState !== WebSocket.OPEN || !video || !video.videoWidth) return
+
+        if (!videoCanvasRef.current) videoCanvasRef.current = document.createElement('canvas')
+        const canvas = videoCanvasRef.current
+        const escala = Math.min(1, 480 / video.videoWidth)
+        canvas.width = Math.round(video.videoWidth * escala)
+        canvas.height = Math.round(video.videoHeight * escala)
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height)
+
+        try {
+            ws.send(JSON.stringify({ type: 'video_frame', frame: canvas.toDataURL('image/jpeg', 0.5) }))
+        } catch {
+            // El WebSocket se está cerrando: el siguiente tick lo comprobará de nuevo.
+        }
+    }, [])
+
+    // Arranca/para el bucle de envío de vídeo según el toggle y la cámara.
+    useEffect(() => {
+        if (shareVideo && isCamActive) {
+            videoIntervalRef.current = setInterval(enviarFrameVideo, 200)   // ≈5 fps
+            return () => clearInterval(videoIntervalRef.current)
+        }
+        clearInterval(videoIntervalRef.current)
+    }, [shareVideo, isCamActive, enviarFrameVideo])
 
     // -------------------------------------------------------
     // Añade puntos de calibración manual al hacer clic en el canvas.
@@ -988,6 +1028,21 @@ export default function RetransmisionPage() {
                             }`}
                     >
                         <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${isAutoMode ? 'translate-x-5' : ''}`} />
+                    </button>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-cr-surface2 rounded-xl border border-cr-border">
+                    <div className="flex flex-col pr-3">
+                        <span className="text-xs font-bold text-cr-text">Compartir vídeo en directo</span>
+                        <span className="text-[10px] text-cr-muted">El espectador verá tu cámara (~5 fps). Desactivado por defecto.</span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setShareVideo(!shareVideo)}
+                        disabled={!isCamActive}
+                        className={`w-10 h-5 rounded-full transition-colors relative outline-none ${!isCamActive ? 'bg-gray-200 cursor-not-allowed' : (shareVideo ? 'bg-cr-primary' : 'bg-gray-300')
+                            }`}
+                    >
+                        <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${shareVideo ? 'translate-x-5' : ''}`} />
                     </button>
                 </div>
                 <div className="flex flex-col gap-2">
