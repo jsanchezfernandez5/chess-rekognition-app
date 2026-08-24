@@ -128,10 +128,17 @@ export default function RetransmisionPublicaPage() {
                     const data = JSON.parse(event.data)
 
                     // Relay de vídeo del host (OPCIONAL): frame JPEG en dataURL. Se escribe el src
-                    // a pelo sobre los <img> montados para evitar re-renders por segundo.
+                    // a pelo sobre el <img> montado para evitar re-renders por segundo.
                     if (data.type === 'video_frame' && data.frame) {
-                        if (videoImgDesktopRef.current) videoImgDesktopRef.current.src = data.frame
-                        if (videoImgMobileRef.current) videoImgMobileRef.current.src = data.frame
+                        // Solo se actualiza el <img> realmente visible según el breakpoint (md):
+                        // ambos paneles existen siempre en el DOM (ocultos por CSS, no desmontados),
+                        // y escribir en los dos obligaría al navegador a decodificar cada JPEG dos
+                        // veces. Tras un cambio de tamaño de ventana, el panel recién visible se
+                        // corrige solo con el siguiente frame (~200 ms).
+                        const imgVisible = window.matchMedia('(min-width: 768px)').matches
+                            ? videoImgDesktopRef.current
+                            : videoImgMobileRef.current
+                        if (imgVisible) imgVisible.src = data.frame
                         if (!videoSrcRef.current) {
                             videoSrcRef.current = data.frame
                             setVideoSrc(data.frame)
