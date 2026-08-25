@@ -90,7 +90,7 @@ app/
 - **IntroducirPartidaPage**: Entrada manual de partidas con tablero interactivo.
 - **ListadoPartidasPage**: Listado de partidas del usuario con visor PGN y descarga.
 - **StockfishPage**: Jugar contra Stockfish con configuración de color y nivel ELO (1350–3100).
-- **RetransmisionPage**: Retransmisión en vivo: captura de cámara, reconocimiento por visión IA con selector de motor (TensorFlow MobileNetV2 / YOLO26 / fusión de ambos por arbitraje de confianza), WebSocket host, tablero en consola, toggle opcional "Compartir vídeo en directo" (~5 fps al espectador, desactivado por defecto) y compartir retransmisión al público.
+- **RetransmisionPage**: Retransmisión en vivo: captura de cámara, reconocimiento por visión IA con detector YOLO26 (detección de piezas y manos sobre tablero rectificado), WebSocket host, tablero en consola, toggle opcional "Compartir vídeo en directo" (~5 fps al espectador, desactivado por defecto) y compartir retransmisión al público.
 - **RetransmisionPublicaPage**: Visor público de retransmisión vía WebSocket usando token de la URL. Muestra el estado del tablero en directo y, si el anfitrión lo comparte, el vídeo en directo de la sala (panel derecho en desktop, bloque superior en móvil).
 - **NotFoundPage**: Página 404.
 

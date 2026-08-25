@@ -5,9 +5,8 @@
  *   1. El usuario rellena el formulario de configuración (evento, jugadores, lugar, ronda, tablero).
  *   2. Al activar la Visión IA: crea la retransmisión en la API, abre el WebSocket con el servidor e inicia la cámara del dispositivo.
  *   3. El usuario calibra el tablero (detección automática de la homografía o manual con 4 puntos).
- *   4. Con la detección automática activa, cada 500ms captura un frame y lo envía al motor de visión
- *      seleccionado (TensorFlow /vision/detect-move, YOLO26 /vision/detect-yolo o fusión de ambos
- *      /vision/classify-fusion).
+ *   4. Con la detección automática activa, cada 500ms captura un frame y lo envía a
+ *      /vision/recognize-board (calibración) o /vision/detect-yolo (detección en vivo).
  *   5. Los espectadores reciben las actualizaciones en tiempo real a través de /retransmision/ws/viewer/{token}.
  *   6. Al finalizar, guarda la partida en /partidas y redirige a /games.
  *
@@ -39,7 +38,7 @@ export default function RetransmisionPage() {
     const wsRef = useRef(null)
     // ID del setInterval de detección automática (cada 500ms)
     const intervalRef = useRef(null)
-    // Semáforo: evita llamadas concurrentes a /vision/detect-move
+    // Semáforo: evita llamadas concurrentes a /vision/detect-yolo
     const detectingRef = useRef(false)
     // Contador de frames sin movimiento detectado (para mostrar "mano detectada")
     const missCountRef = useRef(0)
@@ -88,11 +87,6 @@ export default function RetransmisionPage() {
     const [activeTab, setActiveTab] = useState('config')
     const [manualPoints, setManualPoints] = useState([])
     const [rotation, setRotation] = useState(0)
-    // Motor de reconocimiento usado por la detección automática:
-    //   'tf'     → /vision/detect-move      (MobileNetV2, motor por defecto)
-    //   'yolo'   → /vision/detect-yolo      (YOLO26, detección de objetos)
-    //   'fusion' → /vision/classify-fusion  (ambos motores + arbitraje casilla a casilla)
-    const [engineMode, setEngineMode] = useState('tf')
     const [aspectRatio, setAspectRatio] = useState('16/9')
     const [resultado, setResultado] = useState('*')
     const [formData, setFormData] = useState({
@@ -581,9 +575,7 @@ export default function RetransmisionPage() {
     }, [manualPoints])
 
     // -------------------------------------------------------
-    // OTRO CORAZÓN DE LA APP: Captura un frame y lo envía al motor de visión activo
-    // (TensorFlow, YOLO o fusión de ambos según engineMode). El formato de respuesta es
-    // compatible entre los tres endpoints: {success, found, move, new_fen, ...}.
+    // OTRO CORAZÓN DE LA APP: Captura un frame y lo envía a /vision/detect-yolo (YOLO26).
     // Es el núcleo de la detección automática: se llama cada 500ms cuando isAutoMode=true.
     // detectingRef.current actúa como semáforo para evitar llamadas concurrentes.
     // missCountRef cuenta frames consecutivos sin movimiento para mostrar avisos al usuario.
@@ -601,26 +593,26 @@ export default function RetransmisionPage() {
                 const coordsStr = manualPoints.map(p => `${p.x},${p.y}`).join(",")
                 fd.append('coords', coordsStr)
             }
-            const endpoint = engineMode === 'yolo' ? '/vision/detect-yolo'
-                : engineMode === 'fusion' ? '/vision/classify-fusion'
-                    : '/vision/detect-move'
-            const res = await authFetch(endpoint, {
+            const res = await authFetch('/vision/detect-yolo', {
                 method: 'POST',
                 body: fd,
                 headers: {}
             })
             const data = await res.json()
+
+            // YOLO26 detecta manos mediante hand_detected / hand_boxes en la respuesta
+            // exitosa (success:true). Si hay una mano sobre el tablero, no es un fallo
+            // sino interferencia humana: esperamos a que se retire.
+            if (data.hand_detected) {
+                missCountRef.current = 0
+                setStatus("Mano detectada (esperando...)")
+                return
+            }
+
             if (!data.success) {
-                // En modo fusión el backend avisa de forma EXPLÍCITA cuando una mano tapa el
-                // tablero (error hand_over_board): no es un fallo, es interferencia humana.
-                if (engineMode === 'fusion' && data.error === 'hand_over_board') {
-                    missCountRef.current = 0
-                    setStatus("Mano detectada (esperando...)")
-                    return
-                }
                 missCountRef.current++
                 if (missCountRef.current >= MISS_THRESHOLD) {
-                    setStatus("Mano detectada (esperando...)")
+                    setStatus("Posición incierta — confirma manualmente")
                 }
                 return
             }
@@ -666,7 +658,7 @@ export default function RetransmisionPage() {
         } finally {
             detectingRef.current = false
         }
-    }, [authFetch, captureFrame, addLog, formData.evento, formData.blancas, formData.negras, resultado, manualPoints, rotation, engineMode])
+    }, [authFetch, captureFrame, addLog, formData.evento, formData.blancas, formData.negras, resultado, manualPoints, rotation])
 
     // Inicia/detiene el intervalo de detección automática al cambiar isAutoMode
     useEffect(() => {
@@ -1017,31 +1009,6 @@ export default function RetransmisionPage() {
                             ▼
                         </div>
                     </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                    <label className="text-[11px] font-semibold uppercase tracking-widest text-cr-muted">Motor de reconocimiento</label>
-                    <div className="relative group">
-                        <select
-                            value={engineMode}
-                            onChange={(e) => setEngineMode(e.target.value)}
-                            disabled={!isVisionActive}
-                            className="w-full h-12 appearance-none bg-cr-surface2 border border-cr-primary/15 focus:border-cr-primary rounded-xl px-4 text-sm font-bold text-cr-text transition-all outline-hidden cursor-pointer animate-none"
-                        >
-                            <option value="tf">TensorFlow MobileNetV2 (por defecto)</option>
-                            <option value="yolo">YOLO26 · detección de objetos</option>
-                            <option value="fusion">Ambos · fusión por confianza</option>
-                        </select>
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-cr-muted pointer-events-none group-hover:text-cr-primary transition-colors">
-                            ▼
-                        </div>
-                    </div>
-                    {engineMode !== 'tf' && (
-                        <p className="text-[10px] text-cr-muted leading-relaxed px-1">
-                            {engineMode === 'yolo'
-                                ? 'Requiere un modelo YOLO entrenado en /yolo-dataset. Detecta piezas y manos con bounding boxes.'
-                                : 'Ejecuta los dos motores y arbitra casilla a casilla. La mano detectada pausa la búsqueda de jugadas.'}
-                        </p>
-                    )}
                 </div>
                 <div className="flex items-center justify-between p-3 bg-cr-surface2 rounded-xl border border-cr-border">
                     <div className="flex flex-col">
