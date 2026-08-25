@@ -335,7 +335,7 @@ export default function RetransmisionPublicaPage() {
                     </div>
                 </div>
 
-                <div className="relative bg-cr-surface p-4 rounded-2xl border border-cr-border shadow-sm aspect-square w-full max-w-[400px] mx-auto overflow-hidden">
+                <div className="relative bg-cr-surface p-4 rounded-2xl border border-cr-border shadow-sm aspect-square w-full max-w-[480px] mx-auto overflow-hidden">
                     <Chessboard key={displayFen}
                         options={{
                             position: displayFen,
@@ -363,7 +363,7 @@ export default function RetransmisionPublicaPage() {
                     </AnimatePresence>
                 </div>
 
-                <div className="flex items-center justify-center gap-6 px-2 py-3 bg-cr-surface2 border border-cr-border rounded-xl max-w-[400px] mx-auto w-full">
+                <div className="flex items-center justify-center gap-6 px-2 py-3 bg-cr-surface2 border border-cr-border rounded-xl max-w-[480px] mx-auto w-full">
                     <div className="flex items-center gap-4">
                         <button
                             type="button"
@@ -496,16 +496,18 @@ export default function RetransmisionPublicaPage() {
                     {renderLeftColumn()}
                 </div>
 
-                <div className="relative flex flex-col justify-center items-center bg-cr-bg overflow-hidden border border-cr-border rounded-2xl p-8 min-h-[400px]">
+                <div className="relative flex flex-col justify-center items-center bg-cr-bg overflow-hidden border border-cr-border rounded-2xl p-8">
                     {videoSrc ? (
                         <>
                             {/* Relay de vídeo del anfitrión: sustituye al panel decorativo mientras haya señal */}
-                            <img
-                                ref={videoImgDesktopRef}
-                                src={videoSrc}
-                                alt="Vídeo en directo del lugar de la partida"
-                                className="absolute inset-0 w-full h-full object-cover"
-                            />
+                            <div className="relative w-full aspect-video">
+                                <img
+                                    ref={videoImgDesktopRef}
+                                    src={videoSrc}
+                                    alt="Vídeo en directo del lugar de la partida"
+                                    className="absolute inset-0 w-full h-full object-cover"
+                                />
+                            </div>
                             <div className="absolute top-4 left-4 z-20 flex items-center gap-2 px-3 py-1.5 bg-black/60 rounded-full">
                                 <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
                                 <span className="text-white text-[10px] font-black uppercase tracking-widest">Vídeo en directo</span>
