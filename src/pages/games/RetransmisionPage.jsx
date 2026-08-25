@@ -90,11 +90,11 @@ export default function RetransmisionPage() {
     const [aspectRatio, setAspectRatio] = useState('16/9')
     const [resultado, setResultado] = useState('*')
     const [formData, setFormData] = useState({
-        evento: 'Presentación TFG',
-        blancas: 'José Joaquín Sánchez Fernández',
-        negras: 'Bando Negro',
-        lugar: 'Murcia',
-        ronda: '6',
+        evento: 'Evento de prueba',
+        blancas: 'Jugador 1',
+        negras: 'Jugador 2',
+        lugar: 'Lugar de prueba',
+        ronda: '1',
         tablero: '1'
     })
     const [errors, setErrors] = useState({})
