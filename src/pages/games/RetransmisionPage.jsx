@@ -1105,7 +1105,7 @@ export default function RetransmisionPage() {
             <div className="flex flex-col gap-6 flex-1">
                 <div className="flex flex-col gap-2">
                     <span className="text-[11px] font-semibold uppercase tracking-widest text-cr-muted">Tablero rectificado (vista cenital)</span>
-                    <div className="bg-cr-surface p-4 rounded-2xl border border-cr-border shadow-sm aspect-square w-full max-w-[280px] mx-auto overflow-hidden">
+                    <div className="bg-cr-surface p-4 rounded-2xl border border-cr-border shadow-sm aspect-square w-full max-w-70 mx-auto overflow-hidden">
                         <Chessboard
                             options={{
                                 position: currentFen,
