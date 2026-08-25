@@ -31,12 +31,12 @@ export default function IntroducirPartidaPage() {
 
     // Estado del formulario de detalles de la partida
     const [formData, setFormData] = useState({
-        evento: 'Presentación TFG - Introducir Partidas',
-        blancas: 'José Joaquín Sánchez',
-        negras: 'Bando Negro',
+        evento: 'Evento de prueba',
+        blancas: 'Jugador 1',
+        negras: 'Jugador 2',
         fecha: new Date().toISOString().split('T')[0],
         resultado: '*',
-        ronda: '6',
+        ronda: '1',
         tablero: '1',
         lugar: 'Murcia',
         observaciones: 'Datos introducidos de pruebas desde código'

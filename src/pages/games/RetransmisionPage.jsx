@@ -826,7 +826,7 @@ export default function RetransmisionPage() {
                         id="evento"
                         name="evento"
                         label="Evento *"
-                        placeholder="Ej. Torneo UOC 2026"
+                        placeholder="Ej. Torneo de prueba"
                         value={formData.evento}
                         onChange={handleInputChange}
                         error={errors.evento}
